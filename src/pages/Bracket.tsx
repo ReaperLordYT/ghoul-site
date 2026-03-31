@@ -18,6 +18,7 @@ const Bracket = () => {
   const [form, setForm] = useState({ player1: "", player2: "", status: "planned" as "planned" | "live" | "finished" | "cancelled", player1Score: 0, player2Score: 0 });
   const [edgeModeFrom, setEdgeModeFrom] = useState<string | null>(null);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const resizeRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number } | null>(null);
   const panRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
   const nodeMap = useMemo(() => Object.fromEntries(bracketCanvas.nodes.map((n) => [n.id, n])), [bracketCanvas.nodes]);
   const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
@@ -107,7 +108,7 @@ const Bracket = () => {
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}>{m.player2 || "TBD"}</button>
                             <span className="text-xs">{m.player2Score ?? 0}</span>
                           </div>
-                          <div className={`px-4 pb-2 text-[11px] ${m.status === "live" ? "text-primary animate-flicker" : m.status === "cancelled" ? "text-destructive" : m.status === "finished" ? "text-foreground" : "text-muted-foreground"}`}>{statusLabel(m.status)}</div>
+                          <div className={`px-4 pb-2 text-[11px] ${m.status === "live" ? "text-lime-400 animate-flicker" : m.status === "cancelled" ? "text-rose-500" : m.status === "finished" ? "text-violet-400" : "text-sky-400"}`}>{statusLabel(m.status)}</div>
                           {isAdmin && editMode && (
                             <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={(e) => { e.stopPropagation(); startEdit(m); }} className="w-6 h-6 bg-card border border-primary text-primary flex items-center justify-center"><Pencil size={10} /></button>
@@ -137,17 +138,20 @@ const Bracket = () => {
         <div className="mt-16">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-xl tracking-widest">Графическая сетка</h2>
-            {isAdmin && editMode && (
-              <div className="flex gap-2">
-                <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.max(0.4, bracketCanvas.scale - 0.1) })}><ZoomOut size={13} /></button>
-                <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.min(1.8, bracketCanvas.scale + 0.1) })}><ZoomIn size={13} /></button>
+            <div className="flex gap-2">
+              <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.max(0.4, bracketCanvas.scale - 0.1) })}><ZoomOut size={13} /></button>
+              <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.min(1.8, bracketCanvas.scale + 0.1) })}><ZoomIn size={13} /></button>
+              <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: 1, offsetX: 0, offsetY: 0 })}>100%</button>
+              {isAdmin && editMode && (
+                <>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "planned" })}><Plus size={13} /> Блок</button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Раунд / заметка", x: 120, y: 240, width: 220, height: 56 })}><Type size={13} /> Текст</button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
           <div
-            className="relative border border-border bg-card h-[540px] overflow-hidden overscroll-contain"
+            className="relative border border-primary/40 rounded-md bg-card h-[560px] overflow-hidden overscroll-contain select-none"
             style={{ touchAction: "none" }}
             onWheelCapture={(e) => {
               e.preventDefault();
@@ -158,10 +162,27 @@ const Bracket = () => {
               e.stopPropagation();
               updateBracketCanvas({ scale: Math.min(1.8, Math.max(0.4, bracketCanvas.scale + (e.deltaY > 0 ? -0.06 : 0.06))) });
             }}
-            onMouseDown={(e) => { if ((e.target as HTMLElement).closest("[data-node='1']")) return; panRef.current = { startX: e.clientX, startY: e.clientY, ox: bracketCanvas.offsetX, oy: bracketCanvas.offsetY }; }}
-            onMouseMove={(e) => { if (!panRef.current) return; updateBracketCanvas({ offsetX: panRef.current.ox + (e.clientX - panRef.current.startX), offsetY: panRef.current.oy + (e.clientY - panRef.current.startY) }); }}
-            onMouseUp={() => { panRef.current = null; }}
-            onMouseLeave={() => { panRef.current = null; }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if ((e.target as HTMLElement).closest("[data-node='1']")) return;
+              panRef.current = { startX: e.clientX, startY: e.clientY, ox: bracketCanvas.offsetX, oy: bracketCanvas.offsetY };
+            }}
+            onMouseMove={(e) => {
+              if (resizeRef.current && isAdmin && editMode) {
+                const node = bracketCanvas.nodes.find((n) => n.id === resizeRef.current!.id);
+                if (!node) return;
+                const nextW = Math.max(160, resizeRef.current.startW + (e.clientX - resizeRef.current.startX));
+                const nextH = Math.max(node.type === "text" ? 44 : 82, resizeRef.current.startH + (e.clientY - resizeRef.current.startY));
+                upsertCanvasNode({ ...node, width: nextW, height: nextH });
+                return;
+              }
+              if (panRef.current) {
+                updateBracketCanvas({ offsetX: panRef.current.ox + (e.clientX - panRef.current.startX), offsetY: panRef.current.oy + (e.clientY - panRef.current.startY) });
+                return;
+              }
+            }}
+            onMouseUp={() => { panRef.current = null; resizeRef.current = null; dragRef.current = null; }}
+            onMouseLeave={() => { panRef.current = null; resizeRef.current = null; dragRef.current = null; }}
           >
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               <g transform={`translate(${bracketCanvas.offsetX},${bracketCanvas.offsetY}) scale(${bracketCanvas.scale})`}>
@@ -182,7 +203,7 @@ const Bracket = () => {
                 <div
                   key={node.id}
                   data-node="1"
-                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-sm border border-accent/60 bg-accent/10" : "p-2 rounded-sm border border-primary/30 bg-background/70 ring-1 ring-primary/10"}`}
+                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-sm border border-cyan-500/70 bg-cyan-500/10" : "p-2 rounded-sm border border-primary/40 bg-background/75 ring-1 ring-primary/20"}`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                   onMouseDown={(e) => {
                     if (!(isAdmin && editMode)) return;
@@ -192,7 +213,11 @@ const Bracket = () => {
                     e.stopPropagation();
                     dragRef.current = { id: node.id, dx: e.clientX - node.x, dy: e.clientY - node.y };
                   }}
-                  onMouseMove={(e) => { if (!dragRef.current || dragRef.current.id !== node.id || !(isAdmin && editMode)) return; upsertCanvasNode({ ...node, x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy }); }}
+                  onMouseMove={(e) => {
+                    if (!dragRef.current || dragRef.current.id !== node.id || !(isAdmin && editMode)) return;
+                    e.preventDefault();
+                    upsertCanvasNode({ ...node, x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy });
+                  }}
                   onMouseUp={() => { dragRef.current = null; }}
                 >
                   {isAdmin && editMode && (
@@ -209,7 +234,7 @@ const Bracket = () => {
                   )}
                   {node.type === "text" ? (
                     <textarea
-                      className="w-full h-full bg-transparent resize-none outline-none text-[11px] leading-[1.1] pt-5"
+                      className="w-full h-full bg-transparent resize-none outline-none text-[11px] leading-[1.1] pt-5 select-text"
                       value={node.label}
                       onChange={(e) => upsertCanvasNode({ ...node, label: e.target.value })}
                       disabled={!(isAdmin && editMode)}
@@ -226,7 +251,7 @@ const Bracket = () => {
                           {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
                         <div
-                          className={`px-1 py-1 mt-auto inline-flex items-center gap-1 ${node.status === "live" ? "text-primary" : node.status === "cancelled" ? "text-destructive" : node.status === "finished" ? "text-foreground" : "text-muted-foreground"}`}
+                          className={`px-1 py-1 mt-auto inline-flex items-center gap-1 ${node.status === "live" ? "text-lime-400" : node.status === "cancelled" ? "text-rose-500" : node.status === "finished" ? "text-violet-400" : "text-sky-400"}`}
                         >
                           {node.status === "live" && <Radio size={11} className="animate-flicker" />}
                           {statusLabel(node.status)}
@@ -240,6 +265,17 @@ const Bracket = () => {
                       {edgeModeFrom && edgeModeFrom !== node.id && <button className="border border-primary bg-card p-1 text-primary" onClick={() => { upsertCanvasEdge({ id: `e-${Date.now()}`, from: edgeModeFrom, to: node.id }); setEdgeModeFrom(null); }}><Plus size={12} /></button>}
                       <button className="border border-destructive bg-card p-1 text-destructive" onClick={() => removeCanvasNode(node.id)}><Trash2 size={12} /></button>
                     </div>
+                  )}
+                  {isAdmin && editMode && (
+                    <button
+                      className="absolute bottom-0 right-0 w-3 h-3 bg-primary/80 border border-background cursor-se-resize"
+                      title="Изменить размер"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        resizeRef.current = { id: node.id, startX: e.clientX, startY: e.clientY, startW: node.width, startH: node.height };
+                      }}
+                    />
                   )}
                 </div>
               ))}

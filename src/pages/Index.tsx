@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { InlineEdit } from '@/components/InlineEdit';
 import { useStore } from '@/store/useStore';
-import { Skull, Swords, Trophy, Trash2 } from 'lucide-react';
+import { Skull, Swords, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Index = () => {
@@ -55,7 +55,7 @@ const Index = () => {
         <InlineEdit textKey="top3Title" as="h2" className="font-display text-2xl md:text-3xl text-center text-primary text-glow tracking-widest mb-12" />
         <div className="max-w-4xl mx-auto mb-10">
           <div className={`border p-4 md:p-5 text-center font-heading tracking-wide ${tournamentCompleted ? "border-primary/50 bg-primary/10 text-primary box-glow" : "border-border bg-card text-foreground"}`}>
-            {tournamentCompleted ? "Турнир завершён" : "Турнир ещё не завершён. Победители будут объявлены позже."}
+            <InlineEdit textKey={tournamentCompleted ? "top3CompletedBanner" : "top3PendingBanner"} as="span" className="text-inherit" />
           </div>
         </div>
         {(tournamentCompleted || (isAdmin && editMode)) && (

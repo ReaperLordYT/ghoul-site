@@ -274,6 +274,8 @@ export const useStore = create<AppState>()(
         statPrizeLabel: "Призовой",
         statRoundsValue: "3",
         statRoundsLabel: "Раундов",
+        top3PendingBanner: "Турнир ещё не завершён. Победители будут объявлены позже.",
+        top3CompletedBanner: "Турнир завершён.",
       },
 
       login: (user, pass) => {

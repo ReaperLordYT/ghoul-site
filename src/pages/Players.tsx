@@ -24,12 +24,12 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusClass: Record<string, string> = {
-  active: "text-emerald-500",
-  winner: "text-primary",
-  review: "text-amber-500",
-  disqualified: "text-destructive",
-  rejected: "text-red-500",
-  left: "text-slate-500",
+  active: "text-green-400",
+  winner: "text-yellow-300",
+  review: "text-sky-400",
+  disqualified: "text-red-500",
+  rejected: "text-fuchsia-400",
+  left: "text-orange-400",
 };
 
 const Players = () => {

@@ -8,10 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Link } from 'react-router-dom';
 
 const statusConfig = {
-  planned: { icon: <Clock size={14} />, label: 'Запланировано', cls: 'text-muted-foreground' },
-  live: { icon: <Radio size={14} />, label: 'LIVE', cls: 'text-primary animate-flicker' },
-  finished: { icon: <CheckCircle size={14} />, label: 'Завершён', cls: 'text-muted-foreground/50' },
-  cancelled: { icon: <Ban size={14} />, label: 'Отменён', cls: 'text-destructive' },
+  planned: { icon: <Clock size={14} />, label: 'Запланировано', cls: 'text-sky-400' },
+  live: { icon: <Radio size={14} />, label: 'LIVE', cls: 'text-lime-400 animate-flicker' },
+  finished: { icon: <CheckCircle size={14} />, label: 'Завершён', cls: 'text-violet-400' },
+  cancelled: { icon: <Ban size={14} />, label: 'Отменён', cls: 'text-rose-500' },
 };
 
 const Schedule = () => {
