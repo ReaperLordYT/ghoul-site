@@ -1,11 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '@/store/useStore';
 import { useState } from 'react';
-import { Menu, X, LogOut, Pencil } from 'lucide-react';
+import { Menu, X, LogOut, Pencil, Moon, Sun } from 'lucide-react';
 
 export const Navbar = () => {
   const location = useLocation();
-  const { isAdmin, editMode, toggleEditMode, logout, texts } = useStore();
+  const { isAdmin, editMode, toggleEditMode, logout, texts, theme, toggleTheme } = useStore();
   const [open, setOpen] = useState(false);
 
   const navItems = [
@@ -50,6 +50,9 @@ export const Navbar = () => {
               </Link>
             )
           )}
+          <button onClick={toggleTheme} className="text-muted-foreground hover:text-primary" title={theme === "light" ? "Тёмная тема" : "Светлая тема"}>
+            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
           {isAdmin && (
             <>
               <button onClick={toggleEditMode} className={`flex items-center gap-1 text-xs uppercase ${editMode ? 'text-primary text-glow' : 'text-muted-foreground hover:text-primary'}`}>
@@ -102,6 +105,9 @@ export const Navbar = () => {
               </Link>
             )
           )}
+          <button onClick={toggleTheme} className="block w-full text-left px-4 py-3 text-xs uppercase tracking-wider border-b border-border/50 text-muted-foreground">
+            Тема: {theme === "light" ? "Светлая" : "Тёмная"}
+          </button>
         </div>
       )}
     </nav>

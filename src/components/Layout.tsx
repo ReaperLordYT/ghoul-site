@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { glitchEnabled, audio, soundsEnabled, setSounds } = useStore();
+  const { glitchEnabled, audio, soundsEnabled, setSounds, theme } = useStore();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -21,6 +21,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       });
     }
   }, [audio, soundsEnabled]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   return (
     <div className={`min-h-screen noise-bg ${glitchEnabled ? 'scanline-overlay' : ''}`}>

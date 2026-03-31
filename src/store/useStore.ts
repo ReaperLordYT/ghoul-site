@@ -110,6 +110,7 @@ interface AppState {
   glitchEnabled: boolean;
   cursorTrailEnabled: boolean;
   soundsEnabled: boolean;
+  theme: "light" | "dark";
 
   players: Player[];
   news: NewsItem[];
@@ -129,6 +130,8 @@ interface AppState {
   setGlitch: (v: boolean) => void;
   setCursorTrail: (v: boolean) => void;
   setSounds: (v: boolean) => void;
+  setTheme: (v: "light" | "dark") => void;
+  toggleTheme: () => void;
 
   addPlayer: (p: Player) => void;
   updatePlayer: (id: string, p: Partial<Player>) => void;
@@ -198,6 +201,7 @@ export const useStore = create<AppState>()(
       glitchEnabled: false,
       cursorTrailEnabled: true,
       soundsEnabled: true,
+      theme: "light",
       players: defaultPlayers,
       news: defaultNews,
       schedule: defaultSchedule,
@@ -270,6 +274,8 @@ export const useStore = create<AppState>()(
       setGlitch: (v) => set({ glitchEnabled: v }),
       setCursorTrail: (v) => set({ cursorTrailEnabled: v }),
       setSounds: (v) => set({ soundsEnabled: v }),
+      setTheme: (v) => set({ theme: v }),
+      toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
 
       addPlayer: (p) => set((s) => ({ players: [...s.players, p] })),
       updatePlayer: (id, p) => set((s) => ({ players: s.players.map((pl) => (pl.id === id ? { ...pl, ...p } : pl)) })),
