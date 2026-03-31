@@ -23,7 +23,7 @@ export const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
       <div className="container flex items-center justify-between h-14">
         <Link to="/" className="font-display text-lg tracking-widest text-primary animate-flicker">
-          GHOULS CUP
+          1000-7
         </Link>
 
         <div className="hidden md:flex items-center gap-6">

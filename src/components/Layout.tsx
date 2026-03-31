@@ -23,6 +23,18 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   }, [audio, soundsEnabled]);
 
   useEffect(() => {
+    if (!soundsEnabled) return;
+    const onInteract = () => {
+      if (!audioRef.current) return;
+      void audioRef.current.play().catch(() => {
+        // ignore autoplay policy errors
+      });
+    };
+    window.addEventListener("pointerdown", onInteract, { once: true });
+    return () => window.removeEventListener("pointerdown", onInteract);
+  }, [soundsEnabled, audio.url]);
+
+  useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 

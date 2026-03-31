@@ -54,6 +54,7 @@ export interface OrganizerItem {
   name: string;
   role: string;
   desc: string;
+  icon?: "skull" | "shield" | "sword" | "eye";
 }
 
 export interface Top3Item {
@@ -224,8 +225,8 @@ export const useStore = create<AppState>()(
       bracket: defaultBracket,
       bracketRoundTitles: { 1: "Раунд 1", 2: "Полуфиналы", 3: "Финал" },
       organizers: [
-        { id: "o1", name: "DarkMaster", role: "Главный организатор", desc: "Координирует весь турнир и проверяет формат матчей." },
-        { id: "o2", name: "VoidOracle", role: "Судья", desc: "Следит за соблюдением регламента и решает спорные моменты." },
+        { id: "o1", name: "DarkMaster", role: "Главный организатор", desc: "Координирует весь турнир и проверяет формат матчей.", icon: "skull" },
+        { id: "o2", name: "VoidOracle", role: "Судья", desc: "Следит за соблюдением регламента и решает спорные моменты.", icon: "shield" },
       ],
       top3: [
         { id: "t1", place: 1, name: "Demon King" },

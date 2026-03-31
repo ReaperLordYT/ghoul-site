@@ -74,8 +74,14 @@ const Bracket = () => {
                     >
                       {editingId === m.id ? (
                         <div className="p-3 space-y-2">
-                          <input list="players-list" className="w-full bg-background border border-border px-2 py-1 text-xs" placeholder="Игрок 1 (или впиши вручную)" value={form.player1} onChange={(e) => setForm((s) => ({ ...s, player1: e.target.value }))} />
-                          <input list="players-list" className="w-full bg-background border border-border px-2 py-1 text-xs" placeholder="Игрок 2 (или впиши вручную)" value={form.player2} onChange={(e) => setForm((s) => ({ ...s, player2: e.target.value }))} />
+                          <select className="w-full bg-background border border-border px-2 py-1 text-xs" value={form.player1} onChange={(e) => setForm((s) => ({ ...s, player1: e.target.value }))}>
+                            <option value="">Игрок 1</option>
+                            {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                          </select>
+                          <select className="w-full bg-background border border-border px-2 py-1 text-xs" value={form.player2} onChange={(e) => setForm((s) => ({ ...s, player2: e.target.value }))}>
+                            <option value="">Игрок 2</option>
+                            {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                          </select>
                           <div className="grid grid-cols-2 gap-2">
                             <input type="number" min={0} className="bg-background border border-border px-2 py-1 text-xs" value={form.player1Score} onChange={(e) => setForm((s) => ({ ...s, player1Score: Number(e.target.value) || 0 }))} />
                             <input type="number" min={0} className="bg-background border border-border px-2 py-1 text-xs" value={form.player2Score} onChange={(e) => setForm((s) => ({ ...s, player2Score: Number(e.target.value) || 0 }))} />
@@ -101,7 +107,7 @@ const Bracket = () => {
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}>{m.player2 || "TBD"}</button>
                             <span className="text-xs">{m.player2Score ?? 0}</span>
                           </div>
-                          <div className="px-4 pb-2 text-[11px] text-muted-foreground">{statusLabel(m.status)}</div>
+                          <div className={`px-4 pb-2 text-[11px] ${m.status === "live" ? "text-primary animate-flicker" : m.status === "cancelled" ? "text-destructive" : m.status === "finished" ? "text-foreground" : "text-muted-foreground"}`}>{statusLabel(m.status)}</div>
                           {isAdmin && editMode && (
                             <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={(e) => { e.stopPropagation(); startEdit(m); }} className="w-6 h-6 bg-card border border-primary text-primary flex items-center justify-center"><Pencil size={10} /></button>
@@ -141,8 +147,17 @@ const Bracket = () => {
             )}
           </div>
           <div
-            className="relative border border-border bg-card h-[540px] overflow-hidden"
-            onWheel={(e) => updateBracketCanvas({ scale: Math.min(1.8, Math.max(0.4, bracketCanvas.scale + (e.deltaY > 0 ? -0.06 : 0.06))) })}
+            className="relative border border-border bg-card h-[540px] overflow-hidden overscroll-contain"
+            style={{ touchAction: "none" }}
+            onWheelCapture={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onWheel={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              updateBracketCanvas({ scale: Math.min(1.8, Math.max(0.4, bracketCanvas.scale + (e.deltaY > 0 ? -0.06 : 0.06))) });
+            }}
             onMouseDown={(e) => { if ((e.target as HTMLElement).closest("[data-node='1']")) return; panRef.current = { startX: e.clientX, startY: e.clientY, ox: bracketCanvas.offsetX, oy: bracketCanvas.offsetY }; }}
             onMouseMove={(e) => { if (!panRef.current) return; updateBracketCanvas({ offsetX: panRef.current.ox + (e.clientX - panRef.current.startX), offsetY: panRef.current.oy + (e.clientY - panRef.current.startY) }); }}
             onMouseUp={() => { panRef.current = null; }}
@@ -190,8 +205,14 @@ const Bracket = () => {
                     />
                   ) : (
                     <>
-                      <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)} />
-                      <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)} />
+                      <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)}>
+                        <option value="TBD">TBD</option>
+                        {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                      </select>
+                      <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)}>
+                        <option value="TBD">TBD</option>
+                        {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                      </select>
                       <div className="px-1 py-1 mt-auto text-muted-foreground inline-flex items-center gap-1">
                         {node.status === "live" && <Radio size={11} className="text-primary animate-flicker" />}
                         {statusLabel(node.status)}

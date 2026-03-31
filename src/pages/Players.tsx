@@ -23,6 +23,15 @@ const statusLabel: Record<string, string> = {
   left: "Покинул",
 };
 
+const statusClass: Record<string, string> = {
+  active: "text-emerald-500",
+  winner: "text-primary",
+  review: "text-amber-500",
+  disqualified: "text-destructive",
+  rejected: "text-red-500",
+  left: "text-slate-500",
+};
+
 const Players = () => {
   const { players, schedule, isAdmin, editMode, addPlayer, updatePlayer, removePlayer } = useStore();
   const { playerId } = useParams();
@@ -42,6 +51,22 @@ const Players = () => {
   const playerMatches = selectedPlayer
     ? schedule.filter((m) => m.player1 === selectedPlayer.name || m.player2 === selectedPlayer.name)
     : [];
+  const matchStats = selectedPlayer
+    ? schedule.reduce(
+        (acc, m) => {
+          if (!(m.player1 === selectedPlayer.name || m.player2 === selectedPlayer.name)) return acc;
+          const a = m.player1Score ?? Number((m.score || "0:0").split(":")[0] || 0);
+          const b = m.player2Score ?? Number((m.score || "0:0").split(":")[1] || 0);
+          const isP1 = m.player1 === selectedPlayer.name;
+          const win = isP1 ? a > b : b > a;
+          const loss = isP1 ? a < b : b < a;
+          if (win) acc.wins += 1;
+          if (loss) acc.losses += 1;
+          return acc;
+        },
+        { wins: 0, losses: 0 },
+      )
+    : { wins: 0, losses: 0 };
   const filteredPlayers = players.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
@@ -122,7 +147,7 @@ const Players = () => {
               </div>
               <div className="space-y-1 text-xs text-muted-foreground">
                 {p.mmr && <p>MMR: <span className="text-foreground">{p.mmr}</span></p>}
-                <p>Статус: <span className={p.status === 'winner' ? 'text-primary' : ['disqualified', 'rejected'].includes(p.status) ? 'text-destructive' : 'text-foreground'}>{
+                <p>Статус: <span className={statusClass[p.status] || 'text-foreground'}>{
                 statusLabel[p.status] || p.status
                 }</span></p>
                 {p.statusReason && <p>Причина: <span className="text-foreground">{p.statusReason}</span></p>}
@@ -141,6 +166,31 @@ const Players = () => {
               </div>
               {isAdmin && editMode && (
                 <div className="mt-3 pt-3 border-t border-border/60 space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    {p.avatar ? (
+                      <img src={p.avatar} alt={p.name} className="w-10 h-10 object-cover border border-border" />
+                    ) : (
+                      <div className="w-10 h-10 border border-border flex items-center justify-center text-[10px] text-muted-foreground">no ava</div>
+                    )}
+                    <label className="text-xs border border-border px-2 py-1">
+                      Ава
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => updatePlayer(p.id, { avatar: reader.result as string });
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                    <button className="text-xs border border-destructive text-destructive px-2 py-1" onClick={() => updatePlayer(p.id, { avatar: undefined })}>
+                      Удалить
+                    </button>
+                  </div>
                   <input className="w-full border border-border bg-background px-2 py-1 text-xs" value={p.name} onChange={(e) => updatePlayer(p.id, { name: e.target.value })} />
                   <input className="w-full border border-border bg-background px-2 py-1 text-xs" placeholder="MMR" value={p.mmr || ""} onChange={(e) => updatePlayer(p.id, { mmr: Number(e.target.value) || undefined })} />
                   <input className="w-full border border-border bg-background px-2 py-1 text-xs" placeholder="Dotabuff URL" value={p.dotabuffUrl || ""} onChange={(e) => updatePlayer(p.id, { dotabuffUrl: e.target.value })} />
@@ -209,6 +259,8 @@ const Players = () => {
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <p className="text-muted-foreground">MMR: <span className="text-foreground">{selectedPlayer.mmr || '—'}</span></p>
+                <p className="text-muted-foreground">Побед: <span className="text-foreground">{matchStats.wins}</span></p>
+                <p className="text-muted-foreground">Поражений: <span className="text-foreground">{matchStats.losses}</span></p>
                 <p className="text-muted-foreground">Dotabuff: <span className="text-foreground">{selectedPlayer.dotabuffUrl ? "добавлен" : "—"}</span></p>
                 <p className="text-muted-foreground">Steam: <span className="text-foreground">{selectedPlayer.steamUrl ? "добавлен" : "—"}</span></p>
               </div>

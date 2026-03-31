@@ -58,7 +58,7 @@ const Index = () => {
             {tournamentCompleted ? "Турнир завершён" : "Турнир ещё не завершён. Победители будут объявлены позже."}
           </div>
         </div>
-        {tournamentCompleted && (
+        {(tournamentCompleted || (isAdmin && editMode)) && (
           <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
             {top3ByPlace.map((p, i) => {
             const foundPlayer = players.find((pl) => pl.name === p.name);
