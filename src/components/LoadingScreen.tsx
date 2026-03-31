@@ -9,15 +9,15 @@ export const LoadingScreen = () => {
     >
       <div className="text-center px-6">
         <div className="mb-6">
-          <div className="w-24 h-24 mx-auto rounded-full border border-primary/40 flex items-center justify-center animate-red-pulse">
-            <div className="w-8 h-8 rounded-full bg-primary/70 shadow-[0_0_15px_rgba(255,0,0,0.6)]" />
+          <div className="w-28 h-28 mx-auto rounded-full border-2 border-primary/40 flex items-center justify-center animate-red-pulse bg-card box-glow">
+            <div className="w-12 h-12 rounded-full border-2 border-accent/60 bg-gradient-to-br from-primary/70 to-accent/70" />
           </div>
         </div>
         <p className="font-display text-primary text-glow tracking-[0.25em] text-sm uppercase">
           Ghoul Dominion
         </p>
         <p className="mt-2 text-xs text-muted-foreground tracking-widest uppercase">
-          1000-7 loading...
+          Tokyo Tournament Sync...
         </p>
       </div>
     </motion.div>

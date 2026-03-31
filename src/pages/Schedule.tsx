@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
 import { Clock, Radio, CheckCircle, Ban } from 'lucide-react';
+import { parseScore } from '@/lib/score';
 
 const statusConfig = {
   upcoming: { icon: <Clock size={14} />, label: 'Скоро', cls: 'text-muted-foreground' },
@@ -20,6 +21,7 @@ const Schedule = () => {
         <div className="space-y-4">
           {schedule.map((m, i) => {
             const sc = statusConfig[m.status];
+            const parsed = parseScore(m.score);
             return (
               <motion.div
                 key={m.id}
@@ -32,9 +34,9 @@ const Schedule = () => {
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground/50 font-display tracking-widest mb-1">{m.round}</p>
                   <p className="text-sm text-foreground">
-                    <span className={m.score && m.score.split('-')[0] > m.score.split('-')[1] ? 'text-primary' : ''}>{m.player1}</span>
+                    <span className={parsed && parsed.a > parsed.b ? 'text-primary' : ''}>{m.player1}</span>
                     <span className="text-muted-foreground mx-2">vs</span>
-                    <span className={m.score && m.score.split('-')[1] > m.score.split('-')[0] ? 'text-primary' : ''}>{m.player2}</span>
+                    <span className={parsed && parsed.b > parsed.a ? 'text-primary' : ''}>{m.player2}</span>
                   </p>
                 </div>
                 <div className="text-right">

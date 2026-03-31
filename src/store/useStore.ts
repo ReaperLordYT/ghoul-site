@@ -1,20 +1,22 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface Player {
   id: string;
   name: string;
   avatar?: string;
-  rank?: string;
   mmr?: number;
-  status: 'active' | 'eliminated' | 'winner';
-  matches: { opponent: string; result: 'win' | 'loss'; score: string }[];
+  dotabuffUrl?: string;
+  steamUrl?: string;
+  status: "active" | "eliminated" | "winner";
+  matches: { opponent: string; result: "win" | "loss"; score: string }[];
 }
 
 export interface NewsItem {
   id: string;
   title: string;
   content: string;
+  details?: string;
   date: string;
   avatar?: string;
 }
@@ -25,7 +27,7 @@ export interface MatchItem {
   player2: string;
   time: string;
   date: string;
-  status: 'upcoming' | 'live' | 'finished' | 'cancelled';
+  status: "upcoming" | "live" | "finished" | "cancelled";
   score?: string;
   round: string;
 }
@@ -38,6 +40,58 @@ export interface BracketMatch {
   player2?: string;
   winner?: string;
   score?: string;
+}
+
+export interface OrganizerItem {
+  id: string;
+  name: string;
+  role: string;
+  desc: string;
+}
+
+export interface Top3Item {
+  id: string;
+  place: number;
+  name: string;
+}
+
+export interface AudioSettings {
+  url: string;
+  name: string;
+  volume: number;
+  autoplay: boolean;
+}
+
+export interface PreviewSettings {
+  title: string;
+  subtitle: string;
+  player1Id: string;
+  player2Id: string;
+}
+
+export interface CanvasNode {
+  id: string;
+  type: "match" | "text";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+}
+
+export interface CanvasEdge {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface BracketCanvasState {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  scale: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 interface SiteTexts {
@@ -61,8 +115,12 @@ interface AppState {
   news: NewsItem[];
   schedule: MatchItem[];
   bracket: BracketMatch[];
+  organizers: OrganizerItem[];
+  top3: Top3Item[];
   texts: SiteTexts;
-  top3: { place: number; name: string }[];
+  audio: AudioSettings;
+  preview: PreviewSettings;
+  bracketCanvas: BracketCanvasState;
 
   login: (user: string, pass: string) => boolean;
   changeAdminPassword: (newPassword: string) => void;
@@ -88,84 +146,116 @@ interface AppState {
   addBracketMatch: (m: BracketMatch) => void;
   removeBracketMatch: (id: string) => void;
   updateBracketMatch: (id: string, m: Partial<BracketMatch>) => void;
+
+  addOrganizer: (o: OrganizerItem) => void;
+  updateOrganizer: (id: string, o: Partial<OrganizerItem>) => void;
+  removeOrganizer: (id: string) => void;
+
+  addTop3: (t: Top3Item) => void;
+  updateTop3: (id: string, t: Partial<Top3Item>) => void;
+  removeTop3: (id: string) => void;
+
+  updateAudio: (a: Partial<AudioSettings>) => void;
+  updatePreview: (p: Partial<PreviewSettings>) => void;
+  updateBracketCanvas: (c: Partial<BracketCanvasState>) => void;
+  upsertCanvasNode: (node: CanvasNode) => void;
+  removeCanvasNode: (id: string) => void;
+  upsertCanvasEdge: (edge: CanvasEdge) => void;
+  removeCanvasEdge: (id: string) => void;
+
   updateText: (key: string, value: string) => void;
 }
 
 const defaultPlayers: Player[] = [
-  { id: '1', name: 'Demon King', rank: 'Immortal', mmr: 9200, status: 'winner', matches: [{ opponent: 'Soul Reaper', result: 'win', score: '2-1' }] },
-  { id: '2', name: 'Soul Reaper', rank: 'Immortal', mmr: 8900, status: 'active', matches: [{ opponent: 'Demon King', result: 'loss', score: '1-2' }] },
-  { id: '3', name: 'Shadow Spawn', rank: 'Divine', mmr: 8500, status: 'active', matches: [] },
-  { id: '4', name: 'Requiem', rank: 'Immortal', mmr: 8800, status: 'active', matches: [] },
-  { id: '5', name: 'Necrofiend', rank: 'Divine', mmr: 8300, status: 'eliminated', matches: [] },
-  { id: '6', name: 'Voidwalker', rank: 'Immortal', mmr: 9000, status: 'active', matches: [] },
-  { id: '7', name: 'Raze Lord', rank: 'Divine', mmr: 8400, status: 'active', matches: [] },
-  { id: '8', name: 'Dark Presence', rank: 'Immortal', mmr: 8700, status: 'active', matches: [] },
+  { id: "1", name: "Demon King", mmr: 9200, dotabuffUrl: "https://www.dotabuff.com", steamUrl: "https://steamcommunity.com", status: "winner", matches: [{ opponent: "Soul Reaper", result: "win", score: "2:1" }] },
+  { id: "2", name: "Soul Reaper", mmr: 8900, status: "active", matches: [{ opponent: "Demon King", result: "loss", score: "1:2" }] },
+  { id: "3", name: "Shadow Spawn", mmr: 8500, status: "active", matches: [] },
+  { id: "4", name: "Requiem", mmr: 8800, status: "active", matches: [] },
 ];
 
 const defaultNews: NewsItem[] = [
-  { id: '1', title: 'Ghouls Cup анонсирован', content: 'Подпольный турнир для тех, кто не боится тьмы. 1v1 Shadow Fiend. Только скилл. Только мид.', date: '2026-03-28' },
-  { id: '2', title: 'Регистрация открыта', content: 'Если считаешь себя достойным — докажи. Слоты ограничены. Слабых не ждём.', date: '2026-03-29' },
-  { id: '3', title: 'Demon King доминирует', content: 'Первый раунд завершён. Demon King уничтожил оппонента за 8 минут. Без шансов.', date: '2026-03-30' },
+  { id: "1", title: "Ghouls Cup анонсирован", content: "Турнир стартует уже на этой неделе.", details: "Подробно: формат bo3, single elimination, главная цель — выявить сильнейшего SF-мидера.", date: "2026-03-28" },
+  { id: "2", title: "Регистрация открыта", content: "Слоты ограничены, подтверждение в Discord.", details: "Каждому участнику нужно указать steam и проверить доступность к матчам по расписанию.", date: "2026-03-29" },
 ];
 
 const defaultSchedule: MatchItem[] = [
-  { id: '1', player1: 'Demon King', player2: 'Necrofiend', time: '18:00', date: '2026-04-01', status: 'finished', score: '2-0', round: 'Четвертьфинал' },
-  { id: '2', player1: 'Soul Reaper', player2: 'Raze Lord', time: '19:00', date: '2026-04-01', status: 'finished', score: '2-1', round: 'Четвертьфинал' },
-  { id: '3', player1: 'Shadow Spawn', player2: 'Dark Presence', time: '20:00', date: '2026-04-02', status: 'upcoming', round: 'Полуфинал' },
-  { id: '4', player1: 'Demon King', player2: 'Soul Reaper', time: '21:00', date: '2026-04-03', status: 'upcoming', round: 'Финал' },
+  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "upcoming", round: "Полуфинал" },
+  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "upcoming", round: "Полуфинал" },
 ];
 
 const defaultBracket: BracketMatch[] = [
-  { id: 'b1', round: 1, position: 0, player1: 'Demon King', player2: 'Necrofiend', winner: 'Demon King', score: '2-0' },
-  { id: 'b2', round: 1, position: 1, player1: 'Soul Reaper', player2: 'Raze Lord', winner: 'Soul Reaper', score: '2-1' },
-  { id: 'b3', round: 1, position: 2, player1: 'Shadow Spawn', player2: 'Dark Presence' },
-  { id: 'b4', round: 1, position: 3, player1: 'Voidwalker', player2: 'Requiem' },
-  { id: 'b5', round: 2, position: 0, player1: 'Demon King', player2: 'Soul Reaper' },
-  { id: 'b6', round: 2, position: 1 },
-  { id: 'b7', round: 3, position: 0 },
+  { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", winner: "Demon King", score: "2:1" },
+  { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", winner: "Requiem", score: "1:2" },
+  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem" },
 ];
 
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       isAdmin: false,
-      adminPassword: 'ghoulscup666',
+      adminPassword: "ghoulscup666",
       editMode: false,
-      glitchEnabled: true,
+      glitchEnabled: false,
       cursorTrailEnabled: true,
-      soundsEnabled: false,
+      soundsEnabled: true,
       players: defaultPlayers,
       news: defaultNews,
       schedule: defaultSchedule,
       bracket: defaultBracket,
-      top3: [
-        { place: 1, name: 'Demon King' },
-        { place: 2, name: 'Soul Reaper' },
-        { place: 3, name: 'Shadow Spawn' },
+      organizers: [
+        { id: "o1", name: "DarkMaster", role: "Главный организатор", desc: "Координирует весь турнир и проверяет формат матчей." },
+        { id: "o2", name: "VoidOracle", role: "Судья", desc: "Следит за соблюдением регламента и решает спорные моменты." },
       ],
+      top3: [
+        { id: "t1", place: 1, name: "Demon King" },
+        { id: "t2", place: 2, name: "Soul Reaper" },
+        { id: "t3", place: 3, name: "Shadow Spawn" },
+      ],
+      audio: {
+        url: "https://cdn.pixabay.com/download/audio/2023/03/23/audio_6b76fd26ab.mp3?filename=dark-logo-142209.mp3",
+        name: "Default Tournament Theme",
+        volume: 0.25,
+        autoplay: false,
+      },
+      preview: {
+        title: "Сейчас играет",
+        subtitle: "Bo3 Mid only",
+        player1Id: "1",
+        player2Id: "2",
+      },
+      bracketCanvas: {
+        nodes: [
+          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 86, label: "Demon King vs Soul Reaper" },
+          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 86, label: "Winner Slot" },
+        ],
+        edges: [{ id: "e1", from: "n1", to: "n2", label: "winner" }],
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+      },
       texts: {
-        heroTitle: 'GHOULS CUP',
-        heroSubtitle: '1v1 Shadow Fiend — только скилл, только мид',
-        heroQuote: '«если слаб — не заходи»',
-        registrationUrl: '#',
-        rulesUrl: '#',
-        top3Title: 'ТОП-3',
-        quote1: '«ты точно готов?»',
-        quote2: '«ошибок не будет»',
-        quote3: '«mid решает всё»',
-        quote4: '«докажи или уходи»',
-        statMatchesValue: '24',
-        statMatchesLabel: 'Матчей',
-        statPlayersValue: '8',
-        statPlayersLabel: 'Игроков',
-        statPrizeValue: '$500',
-        statPrizeLabel: 'Призовой',
-        statRoundsValue: '3',
-        statRoundsLabel: 'Раундов',
+        heroTitle: "GHOULS CUP",
+        heroSubtitle: "1v1 Shadow Fiend — только скилл, только мид",
+        heroQuote: "«если слаб — не заходи»",
+        registrationUrl: "#",
+        rulesUrl: "#",
+        top3Title: "ТОП-3",
+        quote1: "«ты точно готов?»",
+        quote2: "«ошибок не будет»",
+        quote3: "«mid решает всё»",
+        quote4: "«докажи или уходи»",
+        statMatchesValue: "24",
+        statMatchesLabel: "Матчей",
+        statPlayersValue: "8",
+        statPlayersLabel: "Игроков",
+        statPrizeValue: "$500",
+        statPrizeLabel: "Призовой",
+        statRoundsValue: "3",
+        statRoundsLabel: "Раундов",
       },
 
       login: (user, pass) => {
-        if (user === 'admin' && pass === get().adminPassword) {
+        if (user === "admin" && pass === get().adminPassword) {
           set({ isAdmin: true });
           return true;
         }
@@ -197,8 +287,44 @@ export const useStore = create<AppState>()(
       addBracketMatch: (m) => set((s) => ({ bracket: [...s.bracket, m] })),
       removeBracketMatch: (id) => set((s) => ({ bracket: s.bracket.filter((m) => m.id !== id) })),
       updateBracketMatch: (id, m) => set((s) => ({ bracket: s.bracket.map((item) => (item.id === id ? { ...item, ...m } : item)) })),
+
+      addOrganizer: (o) => set((s) => ({ organizers: [...s.organizers, o] })),
+      updateOrganizer: (id, o) => set((s) => ({ organizers: s.organizers.map((item) => (item.id === id ? { ...item, ...o } : item)) })),
+      removeOrganizer: (id) => set((s) => ({ organizers: s.organizers.filter((item) => item.id !== id) })),
+
+      addTop3: (t) => set((s) => ({ top3: [...s.top3, t].sort((a, b) => a.place - b.place) })),
+      updateTop3: (id, t) => set((s) => ({ top3: s.top3.map((item) => (item.id === id ? { ...item, ...t } : item)).sort((a, b) => a.place - b.place) })),
+      removeTop3: (id) => set((s) => ({ top3: s.top3.filter((item) => item.id !== id) })),
+
+      updateAudio: (a) => set((s) => ({ audio: { ...s.audio, ...a } })),
+      updatePreview: (p) => set((s) => ({ preview: { ...s.preview, ...p } })),
+      updateBracketCanvas: (c) => set((s) => ({ bracketCanvas: { ...s.bracketCanvas, ...c } })),
+      upsertCanvasNode: (node) =>
+        set((s) => ({
+          bracketCanvas: {
+            ...s.bracketCanvas,
+            nodes: s.bracketCanvas.nodes.some((n) => n.id === node.id) ? s.bracketCanvas.nodes.map((n) => (n.id === node.id ? node : n)) : [...s.bracketCanvas.nodes, node],
+          },
+        })),
+      removeCanvasNode: (id) =>
+        set((s) => ({
+          bracketCanvas: {
+            ...s.bracketCanvas,
+            nodes: s.bracketCanvas.nodes.filter((n) => n.id !== id),
+            edges: s.bracketCanvas.edges.filter((e) => e.from !== id && e.to !== id),
+          },
+        })),
+      upsertCanvasEdge: (edge) =>
+        set((s) => ({
+          bracketCanvas: {
+            ...s.bracketCanvas,
+            edges: s.bracketCanvas.edges.some((e) => e.id === edge.id) ? s.bracketCanvas.edges.map((e) => (e.id === edge.id ? edge : e)) : [...s.bracketCanvas.edges, edge],
+          },
+        })),
+      removeCanvasEdge: (id) => set((s) => ({ bracketCanvas: { ...s.bracketCanvas, edges: s.bracketCanvas.edges.filter((e) => e.id !== id) } })),
+
       updateText: (key, value) => set((s) => ({ texts: { ...s.texts, [key]: value } })),
     }),
-    { name: 'ghouls-cup-store' }
-  )
+    { name: "ghouls-cup-store" },
+  ),
 );

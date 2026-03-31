@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
 import { InlineEdit } from '@/components/InlineEdit';
 import { useStore } from '@/store/useStore';
-import { Skull, Swords, Trophy } from 'lucide-react';
+import { Skull, Swords, Trophy, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 const Index = () => {
-  const { top3, texts } = useStore();
+  const { top3, texts, players, preview, isAdmin, editMode, updateTop3, addTop3, removeTop3 } = useStore();
+  const [newTopName, setNewTopName] = useState('');
 
   return (
     <div>
@@ -55,10 +57,35 @@ const Index = () => {
                 {p.place === 1 ? <Trophy className="mx-auto text-primary" size={40} /> : <Skull className="mx-auto text-muted-foreground" size={32} />}
               </div>
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">#{p.place}</p>
-              <p className="font-heading text-lg text-foreground">{p.name}</p>
+              {isAdmin && editMode ? (
+                <div className="space-y-2">
+                  <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.place} onChange={(e) => updateTop3(p.id, { place: Number(e.target.value) || p.place })} />
+                  <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.name} onChange={(e) => updateTop3(p.id, { name: e.target.value })} />
+                  <button className="text-destructive" onClick={() => removeTop3(p.id)}>
+                    <Trash2 size={13} className="mx-auto" />
+                  </button>
+                </div>
+              ) : (
+                <p className="font-heading text-lg text-foreground">{p.name}</p>
+              )}
             </motion.div>
           ))}
         </div>
+        {isAdmin && editMode && (
+          <div className="max-w-sm mx-auto mt-6 flex gap-2">
+            <input className="flex-1 bg-background border border-border px-2 py-2 text-sm" placeholder="Новый игрок Top-3" value={newTopName} onChange={(e) => setNewTopName(e.target.value)} />
+            <button
+              className="px-3 border border-primary text-primary"
+              onClick={() => {
+                if (!newTopName.trim()) return;
+                addTop3({ id: Date.now().toString(), place: top3.length + 1, name: newTopName.trim() });
+                setNewTopName('');
+              }}
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+        )}
       </section>
 
       <div className="scratch-line w-full" />
@@ -95,6 +122,28 @@ const Index = () => {
               <InlineEdit textKey={s.labelKey} as="p" className="text-xs text-muted-foreground uppercase tracking-widest" />
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="py-16 px-4 border-t border-border">
+        <div className="max-w-2xl mx-auto border border-primary/40 bg-card p-6 box-glow">
+          <p className="font-display text-sm tracking-widest text-primary">{preview.title}</p>
+          <p className="text-xs text-muted-foreground mb-4">{preview.subtitle}</p>
+          <div className="flex items-center justify-between gap-4">
+            <div className="text-center flex-1">
+              {players.find((p) => p.id === preview.player1Id)?.avatar && (
+                <img src={players.find((p) => p.id === preview.player1Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-2" />
+              )}
+              <p className="font-heading">{players.find((p) => p.id === preview.player1Id)?.name || 'Игрок 1'}</p>
+            </div>
+            <p className="text-muted-foreground font-display">VS</p>
+            <div className="text-center flex-1">
+              {players.find((p) => p.id === preview.player2Id)?.avatar && (
+                <img src={players.find((p) => p.id === preview.player2Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-2" />
+              )}
+              <p className="font-heading">{players.find((p) => p.id === preview.player2Id)?.name || 'Игрок 2'}</p>
+            </div>
+          </div>
         </div>
       </section>
     </div>

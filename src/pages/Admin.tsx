@@ -2,14 +2,17 @@ import { useStore } from '@/store/useStore';
 import { Navigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import { Trash2, Plus, ImagePlus } from 'lucide-react';
+import { isValidScore, normalizeScoreInput } from '@/lib/score';
+import { toPng } from 'html-to-image';
 
 const Admin = () => {
   const store = useStore();
-  const [tab, setTab] = useState<'players' | 'news' | 'schedule' | 'links' | 'settings'>('players');
-  const [playerForm, setPlayerForm] = useState({ name: '', rank: '', mmr: '', avatar: '' });
+  const [tab, setTab] = useState<'players' | 'news' | 'schedule' | 'links' | 'settings' | 'media'>('players');
+  const [playerForm, setPlayerForm] = useState({ name: '', mmr: '', avatar: '', dotabuffUrl: '', steamUrl: '' });
   const [matchForm, setMatchForm] = useState({ player1: '', player2: '', time: '', date: '', round: '' });
   const [newsForm, setNewsForm] = useState({ title: '', content: '', avatar: '' });
   const [newPassword, setNewPassword] = useState('');
+  const previewRef = useRef<HTMLDivElement>(null);
   const playerFileRef = useRef<HTMLInputElement>(null);
   const newsFileRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +40,7 @@ const Admin = () => {
     { key: 'schedule', label: 'Расписание' },
     { key: 'links', label: 'Ссылки' },
     { key: 'settings', label: 'Настройки' },
+    { key: 'media', label: 'Медиа' },
   ] as const;
 
   const handleNewsAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,17 +83,18 @@ const Admin = () => {
                   )}
                 </button>
                 <input ref={playerFileRef} type="file" accept="image/*" className="hidden" onChange={handlePlayerAvatar} />
-                <div className="grid grid-cols-3 gap-2 flex-1">
+                <div className="grid grid-cols-4 gap-2 flex-1">
                   <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Имя" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} />
-                  <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Ранг" value={playerForm.rank} onChange={(e) => setPlayerForm({ ...playerForm, rank: e.target.value })} />
                   <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="MMR" value={playerForm.mmr} onChange={(e) => setPlayerForm({ ...playerForm, mmr: e.target.value })} />
+                  <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Dotabuff URL" value={playerForm.dotabuffUrl} onChange={(e) => setPlayerForm({ ...playerForm, dotabuffUrl: e.target.value })} />
+                  <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Steam URL" value={playerForm.steamUrl} onChange={(e) => setPlayerForm({ ...playerForm, steamUrl: e.target.value })} />
                 </div>
               </div>
               <button
                 onClick={() => {
                   if (!playerForm.name) return;
-                  store.addPlayer({ id: Date.now().toString(), name: playerForm.name, rank: playerForm.rank, mmr: Number(playerForm.mmr) || 0, status: 'active', matches: [], avatar: playerForm.avatar });
-                  setPlayerForm({ name: '', rank: '', mmr: '', avatar: '' });
+                  store.addPlayer({ id: Date.now().toString(), name: playerForm.name, mmr: Number(playerForm.mmr) || 0, dotabuffUrl: playerForm.dotabuffUrl, steamUrl: playerForm.steamUrl, status: 'active', matches: [], avatar: playerForm.avatar });
+                  setPlayerForm({ name: '', mmr: '', avatar: '', dotabuffUrl: '', steamUrl: '' });
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 border border-primary text-primary text-xs uppercase hover:bg-primary/10"
               >
@@ -107,8 +112,12 @@ const Admin = () => {
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleExistingPlayerAvatar(p.id, e)} />
                 </label>
                 <div className="flex-1">
-                  <p className="text-foreground font-heading">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.rank} — {p.mmr} MMR</p>
+                  <input className="w-full bg-background border border-border px-2 py-1 text-sm text-foreground font-heading" value={p.name} onChange={(e) => store.updatePlayer(p.id, { name: e.target.value })} />
+                  <div className="grid md:grid-cols-3 gap-2 mt-2">
+                    <input className="bg-background border border-border px-2 py-1 text-xs" placeholder="MMR" value={p.mmr || ''} onChange={(e) => store.updatePlayer(p.id, { mmr: Number(e.target.value) || undefined })} />
+                    <input className="bg-background border border-border px-2 py-1 text-xs" placeholder="Dotabuff URL" value={p.dotabuffUrl || ''} onChange={(e) => store.updatePlayer(p.id, { dotabuffUrl: e.target.value })} />
+                    <input className="bg-background border border-border px-2 py-1 text-xs" placeholder="Steam URL" value={p.steamUrl || ''} onChange={(e) => store.updatePlayer(p.id, { steamUrl: e.target.value })} />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
@@ -180,8 +189,14 @@ const Admin = () => {
             <div className="border border-border bg-card p-4 space-y-3">
               <p className="text-xs text-muted-foreground uppercase tracking-widest">Добавить матч</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Игрок 1" value={matchForm.player1} onChange={(e) => setMatchForm({ ...matchForm, player1: e.target.value })} />
-                <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Игрок 2" value={matchForm.player2} onChange={(e) => setMatchForm({ ...matchForm, player2: e.target.value })} />
+                <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={matchForm.player1} onChange={(e) => setMatchForm({ ...matchForm, player1: e.target.value })}>
+                  <option value="">Игрок 1</option>
+                  {store.players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+                <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={matchForm.player2} onChange={(e) => setMatchForm({ ...matchForm, player2: e.target.value })}>
+                  <option value="">Игрок 2</option>
+                  {store.players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Время" value={matchForm.time} onChange={(e) => setMatchForm({ ...matchForm, time: e.target.value })} />
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Дата" value={matchForm.date} onChange={(e) => setMatchForm({ ...matchForm, date: e.target.value })} />
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Раунд" value={matchForm.round} onChange={(e) => setMatchForm({ ...matchForm, round: e.target.value })} />
@@ -203,10 +218,10 @@ const Admin = () => {
                   <p className="text-foreground text-sm">{m.player1} vs {m.player2}</p>
                   <p className="text-xs text-muted-foreground">{m.round} — {m.date} {m.time}</p>
                   <input
-                    className="mt-2 bg-background border border-border text-xs text-foreground px-2 py-1 w-24"
+                    className={`mt-2 bg-background border text-xs text-foreground px-2 py-1 w-24 ${m.score && !isValidScore(m.score) ? 'border-destructive' : 'border-border'}`}
                     placeholder="Счёт"
                     value={m.score || ''}
-                    onChange={(e) => store.updateMatch(m.id, { score: e.target.value })}
+                    onChange={(e) => store.updateMatch(m.id, { score: normalizeScoreInput(e.target.value) })}
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -295,6 +310,82 @@ const Admin = () => {
                   Обновить
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {tab === 'media' && (
+          <div className="space-y-6">
+            <div className="border border-border bg-card p-6 space-y-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">Звук сайта</p>
+              <input className="w-full bg-background border border-border px-3 py-2 text-sm" value={store.audio.url} onChange={(e) => store.updateAudio({ url: e.target.value })} placeholder="URL mp3/wav" />
+              <input className="w-full bg-background border border-border px-3 py-2 text-sm" value={store.audio.name} onChange={(e) => store.updateAudio({ name: e.target.value })} placeholder="Название трека" />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs">Громкость
+                  <input type="range" min={0} max={1} step={0.05} value={store.audio.volume} onChange={(e) => store.updateAudio({ volume: Number(e.target.value) })} />
+                </label>
+                <label className="text-xs flex items-center gap-2">
+                  <input type="checkbox" checked={store.audio.autoplay} onChange={(e) => store.updateAudio({ autoplay: e.target.checked })} />
+                  Автозапуск
+                </label>
+              </div>
+              <input
+                type="file"
+                accept="audio/*"
+                className="text-xs"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => store.updateAudio({ url: reader.result as string, name: file.name });
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+
+            <div className="border border-border bg-card p-6 space-y-3">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest">Превью матча (PNG)</p>
+              <input className="w-full bg-background border border-border px-3 py-2 text-sm" value={store.preview.title} onChange={(e) => store.updatePreview({ title: e.target.value })} />
+              <input className="w-full bg-background border border-border px-3 py-2 text-sm" value={store.preview.subtitle} onChange={(e) => store.updatePreview({ subtitle: e.target.value })} />
+              <div className="grid grid-cols-2 gap-2">
+                <select className="bg-background border border-border px-3 py-2 text-sm" value={store.preview.player1Id} onChange={(e) => store.updatePreview({ player1Id: e.target.value })}>
+                  {store.players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <select className="bg-background border border-border px-3 py-2 text-sm" value={store.preview.player2Id} onChange={(e) => store.updatePreview({ player2Id: e.target.value })}>
+                  {store.players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div ref={previewRef} className="border border-primary/40 bg-background p-4 rounded-sm">
+                <p className="font-display text-primary">{store.preview.title}</p>
+                <p className="text-xs text-muted-foreground mb-2">{store.preview.subtitle}</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    {store.players.find((p) => p.id === store.preview.player1Id)?.avatar && (
+                      <img src={store.players.find((p) => p.id === store.preview.player1Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-1" />
+                    )}
+                    <p className="font-heading">{store.players.find((p) => p.id === store.preview.player1Id)?.name || "Игрок 1"}</p>
+                  </div>
+                  <p className="text-muted-foreground">VS</p>
+                  <div className="text-center">
+                    {store.players.find((p) => p.id === store.preview.player2Id)?.avatar && (
+                      <img src={store.players.find((p) => p.id === store.preview.player2Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-1" />
+                    )}
+                    <p className="font-heading">{store.players.find((p) => p.id === store.preview.player2Id)?.name || "Игрок 2"}</p>
+                  </div>
+                </div>
+              </div>
+              <button
+                className="px-3 py-2 border border-primary text-primary text-xs"
+                onClick={async () => {
+                  if (!previewRef.current) return;
+                  const dataUrl = await toPng(previewRef.current);
+                  const link = document.createElement("a");
+                  link.download = "match-preview.png";
+                  link.href = dataUrl;
+                  link.click();
+                }}
+              >
+                Скачать PNG
+              </button>
             </div>
           </div>
         )}

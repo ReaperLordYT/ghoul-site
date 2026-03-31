@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import Index from "./pages/Index";
 import News from "./pages/News";
+import NewsDetail from "./pages/NewsDetail";
 import Players from "./pages/Players";
 import Bracket from "./pages/Bracket";
 import Schedule from "./pages/Schedule";
@@ -34,6 +35,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/news" element={<News />} />
+              <Route path="/news/:id" element={<NewsDetail />} />
               <Route path="/players" element={<Players />} />
               <Route path="/bracket" element={<Bracket />} />
               <Route path="/schedule" element={<Schedule />} />
