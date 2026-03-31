@@ -193,7 +193,15 @@ const Schedule = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.08 }}
                 viewport={{ once: true }}
-                className={`border bg-card p-4 flex items-center justify-between cursor-pointer ${m.status === 'live' ? 'border-primary box-glow' : 'border-border'}`}
+                className={`rounded-xl border bg-card/90 p-4 flex items-center justify-between cursor-pointer shadow-sm ${
+                  m.status === 'live'
+                    ? 'border-lime-400/50 ring-1 ring-lime-400/30'
+                    : m.status === 'planned'
+                      ? 'border-sky-400/40'
+                      : m.status === 'finished'
+                        ? 'border-violet-400/40'
+                        : 'border-rose-500/40 opacity-80'
+                }`}
                 onClick={() => setSelectedMatchId(m.id)}
               >
                 <div className="flex-1">
@@ -211,7 +219,7 @@ const Schedule = () => {
                       Трансляция
                     </a>
                   )}
-                  <div className={`flex items-center gap-1 text-xs mt-1 justify-end ${sc.cls}`}>
+                  <div className={`inline-flex items-center gap-1 text-xs mt-1 justify-end rounded-md px-2 py-1 border border-border/50 ${sc.cls}`}>
                     {sc.icon} {sc.label}
                     {m.score && <span className="ml-2 text-foreground font-display">{m.score}</span>}
                   </div>

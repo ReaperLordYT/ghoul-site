@@ -75,7 +75,7 @@ const Bracket = () => {
                   {matches.map((m) => (
                     <div
                       key={m.id}
-                      className="border border-border/70 bg-card/80 backdrop-blur-sm rounded-md relative group cursor-pointer shadow-sm hover:border-primary/50 transition-colors"
+                      className="border border-border/60 bg-card/85 rounded-xl relative group cursor-pointer shadow-lg hover:border-primary/50 transition-colors overflow-hidden"
                       onClick={() => {
                         if (isAdmin && editMode) return;
                         setSelectedMatchId(m.id);
@@ -108,15 +108,32 @@ const Bracket = () => {
                         </div>
                       ) : (
                         <>
-                          <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/50 ${m.winner === m.player1 ? "text-primary" : "text-foreground"}`}>
+                          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30 bg-muted/20">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Bo3</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                m.status === "live"
+                                  ? "bg-lime-500/20 text-lime-400"
+                                  : m.status === "finished"
+                                    ? "bg-violet-500/20 text-violet-300"
+                                    : m.status === "cancelled"
+                                      ? "bg-rose-500/20 text-rose-400"
+                                      : "bg-sky-500/20 text-sky-300"
+                              }`}>
+                                {statusLabel(m.status)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">Раунд {m.round}</span>
+                          </div>
+                          <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/30 ${m.winner === m.player1 ? "text-primary bg-primary/5" : "text-foreground"}`}>
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player1Score: (m.player1Score ?? 0) + 1, score: `${(m.player1Score ?? 0) + 1}:${m.player2Score ?? 0}` }); }}>{m.player1 || "TBD"}</button>
                             <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player1Score ?? 0}</span>
                           </div>
-                          <div className={`px-4 py-2 text-sm flex justify-between ${m.winner === m.player2 ? "text-primary" : "text-foreground"}`}>
+                          <div className={`px-4 py-2 text-sm flex justify-between ${m.winner === m.player2 ? "text-primary bg-primary/5" : "text-foreground"}`}>
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}>{m.player2 || "TBD"}</button>
                             <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player2Score ?? 0}</span>
                           </div>
-                          <div className={`px-4 pb-2 text-[11px] ${m.status === "live" ? "text-lime-400 animate-flicker" : m.status === "cancelled" ? "text-rose-500" : m.status === "finished" ? "text-violet-400" : "text-sky-400"}`}>{statusLabel(m.status)}</div>
+                          <div className="px-4 pb-2 text-[10px] text-muted-foreground/80">Клик по матчу: подробности</div>
                           {isAdmin && editMode && (
                             <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={(e) => { e.stopPropagation(); startEdit(m); }} className="w-6 h-6 bg-card border border-primary text-primary flex items-center justify-center"><Pencil size={10} /></button>
@@ -211,7 +228,7 @@ const Bracket = () => {
                 <div
                   key={node.id}
                   data-node="1"
-                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-md border border-cyan-400/70 bg-slate-900/75 ring-1 ring-cyan-400/20" : "p-2 rounded-md border border-border/70 bg-zinc-800/90 ring-1 ring-primary/15"}`}
+                  className={`absolute shadow-lg text-xs ${node.type === "text" ? "p-1 rounded-lg border border-cyan-400/60 bg-card/90 ring-1 ring-cyan-400/20" : "rounded-xl border border-border/60 bg-card/95 overflow-hidden ring-1 ring-primary/10"}`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                   onMouseDown={(e) => {
                     if (!(isAdmin && editMode)) return;
@@ -231,7 +248,7 @@ const Bracket = () => {
                   {isAdmin && editMode && (
                     <div
                       data-drag-handle="1"
-                      className="absolute top-0 left-0 right-0 h-7 cursor-grab bg-background/55 border-b border-border/60 rounded-t-sm flex items-center justify-center"
+                      className="absolute top-0 left-0 right-0 h-7 cursor-grab bg-muted/30 border-b border-border/40 rounded-t-xl flex items-center justify-center"
                       title="Перетаскивание"
                       onMouseDown={(e) => {
                         if (!(isAdmin && editMode)) return;
@@ -242,24 +259,24 @@ const Bracket = () => {
                   )}
                   {node.type === "text" ? (
                     <textarea
-                      className="w-full h-full bg-transparent resize-none outline-none text-[11px] leading-[1.1] pt-5 select-text"
+                      className="w-full h-full bg-transparent resize-none outline-none text-[11px] leading-[1.1] pt-6 px-1 select-text"
                       value={node.label}
                       onChange={(e) => upsertCanvasNode({ ...node, label: e.target.value })}
                       disabled={!(isAdmin && editMode)}
                     />
                   ) : (
                     <>
-                      <div className="pt-5 h-full flex flex-col">
-                        <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)}>
+                      <div className="pt-7 h-full flex flex-col select-none">
+                        <select className="w-full bg-transparent border-b border-border/40 px-2 py-2 text-[12px] font-medium" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)}>
                           <option value="TBD">TBD</option>
                           {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
-                        <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)}>
+                        <select className="w-full bg-transparent border-b border-border/40 px-2 py-2 text-[12px] font-medium" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)}>
                           <option value="TBD">TBD</option>
                           {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
                         <select
-                          className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]"
+                          className="w-full bg-transparent border-b border-border/40 px-2 py-1 text-[11px]"
                           value={node.status || "planned"}
                           onChange={(e) => upsertCanvasNode({ ...node, status: e.target.value as typeof node.status })}
                           disabled={!(isAdmin && editMode)}
@@ -269,9 +286,7 @@ const Bracket = () => {
                           <option value="finished">Завершён</option>
                           <option value="cancelled">Отменён</option>
                         </select>
-                        <div
-                          className={`px-1 py-1 mt-auto inline-flex items-center gap-1 ${node.status === "live" ? "text-lime-400" : node.status === "cancelled" ? "text-rose-500" : node.status === "finished" ? "text-violet-400" : "text-sky-400"}`}
-                        >
+                        <div className={`px-2 py-1 mt-auto inline-flex items-center gap-1 text-[11px] ${node.status === "live" ? "text-lime-400" : node.status === "cancelled" ? "text-rose-500" : node.status === "finished" ? "text-violet-400" : "text-sky-400"}`}>
                           {node.status === "live" && <Radio size={11} className="animate-flicker" />}
                           {statusLabel(node.status)}
                         </div>
