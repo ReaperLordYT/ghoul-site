@@ -5,30 +5,30 @@ import { useMemo, useRef, useState } from "react";
 import { isValidScore, normalizeScoreInput } from "@/lib/score";
 
 const Bracket = () => {
-  const { bracket, players, isAdmin, editMode, addBracketMatch, removeBracketMatch, updateBracketMatch, bracketCanvas, updateBracketCanvas, upsertCanvasNode, removeCanvasNode, upsertCanvasEdge, removeCanvasEdge } = useStore();
+  const { bracket, players, isAdmin, editMode, addBracketMatch, removeBracketMatch, updateBracketMatch, bracketCanvas, bracketRoundTitles, setBracketRoundTitle, updateBracketCanvas, upsertCanvasNode, removeCanvasNode, upsertCanvasEdge, removeCanvasEdge } = useStore();
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ player1: "", player2: "", winner: "", score: "" });
+  const [form, setForm] = useState({ player1: "", player2: "", winner: "", score: "", status: "upcoming" as "upcoming" | "live" | "finished" | "cancelled" });
   const [edgeModeFrom, setEdgeModeFrom] = useState<string | null>(null);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const panRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
   const nodeMap = useMemo(() => Object.fromEntries(bracketCanvas.nodes.map((n) => [n.id, n])), [bracketCanvas.nodes]);
 
   const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b);
-  const roundNames: Record<number, string> = { 1: "Четвертьфинал", 2: "Полуфинал", 3: "Финал" };
 
   const handleAddEmpty = (round: number) => {
     const matchesInRound = bracket.filter((m) => m.round === round);
     const nextPos = matchesInRound.length > 0 ? Math.max(...matchesInRound.map((m) => m.position)) + 1 : 0;
-    addBracketMatch({ id: `b-${Date.now()}`, round, position: nextPos });
+    addBracketMatch({ id: `b-${Date.now()}`, round, position: nextPos, player1: "TBD", player2: "TBD", status: "upcoming" });
   };
 
   const handleAddRound = () => {
     const nextRound = rounds.length > 0 ? Math.max(...rounds) + 1 : 1;
-    addBracketMatch({ id: `b-${Date.now()}`, round: nextRound, position: 0 });
+    addBracketMatch({ id: `b-${Date.now()}`, round: nextRound, position: 0, player1: "TBD", player2: "TBD", status: "upcoming" });
   };
 
   const startEdit = (m: typeof bracket[0]) => {
     setEditingId(m.id);
-    setForm({ player1: m.player1 || "", player2: m.player2 || "", winner: m.winner || "", score: m.score || "" });
+    setForm({ player1: m.player1 || "", player2: m.player2 || "", winner: m.winner || "", score: m.score || "", status: m.status || "upcoming" });
   };
 
   const saveEdit = () => {
@@ -38,8 +38,16 @@ const Bracket = () => {
       player2: form.player2 || undefined,
       winner: form.winner || undefined,
       score: isValidScore(form.score) ? form.score : undefined,
+      status: form.status,
     });
     setEditingId(null);
+  };
+
+  const adjustScore = (m: (typeof bracket)[number], side: 1 | 2, delta: number) => {
+    const [aRaw, bRaw] = (m.score && isValidScore(m.score) ? m.score : "0:0").split(":");
+    const a = Math.max(0, Number(aRaw) + (side === 1 ? delta : 0));
+    const b = Math.max(0, Number(bRaw) + (side === 2 ? delta : 0));
+    updateBracketMatch(m.id, { score: `${a}:${b}` });
   };
 
   return (
@@ -52,9 +60,13 @@ const Bracket = () => {
             const matches = bracket.filter((m) => m.round === round).sort((a, b) => a.position - b.position);
             return (
               <div key={round} className="flex-shrink-0 w-60">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest text-center mb-6 font-display">
-                  {roundNames[round] || `Раунд ${round}`}
-                </p>
+                {isAdmin && editMode ? (
+                  <input className="w-full text-xs text-center bg-background border border-border px-2 py-1 mb-4" value={bracketRoundTitles[round] || `Раунд ${round}`} onChange={(e) => setBracketRoundTitle(round, e.target.value)} />
+                ) : (
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest text-center mb-6 font-display">
+                    {bracketRoundTitles[round] || `Раунд ${round}`}
+                  </p>
+                )}
                 <div className="space-y-4" style={{ paddingTop: ri * 40 }}>
                   {matches.map((m, i) => (
                     <motion.div
@@ -80,6 +92,12 @@ const Bracket = () => {
                             {[form.player1, form.player2].filter(Boolean).map((name) => <option key={name} value={name}>{name}</option>)}
                           </select>
                           <input className={`w-full bg-background border px-2 py-1 text-xs text-foreground ${form.score && !isValidScore(form.score) ? "border-destructive" : "border-border"}`} placeholder="Счёт (2:1)" value={form.score} onChange={(e) => setForm({ ...form, score: normalizeScoreInput(e.target.value) })} />
+                          <select className="w-full bg-background border border-border px-2 py-1 text-xs text-foreground" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}>
+                            <option value="upcoming">Скоро</option>
+                            <option value="live">LIVE</option>
+                            <option value="finished">Завершён</option>
+                            <option value="cancelled">Отменён</option>
+                          </select>
                           <div className="flex gap-2">
                             <button onClick={saveEdit} className="px-2 py-1 border border-primary text-primary text-xs hover:bg-primary/10">Ок</button>
                             <button onClick={() => setEditingId(null)} className="px-2 py-1 border border-border text-muted-foreground text-xs hover:border-primary/50">Отмена</button>
@@ -88,13 +106,14 @@ const Bracket = () => {
                       ) : (
                         <>
                           <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/50 ${m.winner === m.player1 ? 'text-primary' : 'text-foreground'}`}>
-                            <span>{m.player1 || '—'}</span>
+                            <button disabled={!(isAdmin && editMode)} onClick={() => adjustScore(m, 1, 1)} className="text-left">{m.player1 || 'TBD'}</button>
                             {m.score && <span className="text-xs text-muted-foreground">{m.score?.split(':')[0]}</span>}
                           </div>
                           <div className={`px-4 py-2 text-sm flex justify-between ${m.winner === m.player2 ? 'text-primary' : 'text-foreground'}`}>
-                            <span>{m.player2 || '—'}</span>
+                            <button disabled={!(isAdmin && editMode)} onClick={() => adjustScore(m, 2, 1)} className="text-left">{m.player2 || 'TBD'}</button>
                             {m.score && <span className="text-xs text-muted-foreground">{m.score?.split(':')[1]}</span>}
                           </div>
+                          <div className="px-4 pb-2 text-[11px] text-muted-foreground">{m.status === "live" ? "LIVE" : m.status === "cancelled" ? "Отменён" : m.status === "finished" ? "Завершён" : "Скоро"}</div>
                           {isAdmin && editMode && (
                             <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => startEdit(m)} className="w-6 h-6 bg-card border border-primary text-primary flex items-center justify-center">
@@ -140,13 +159,36 @@ const Bracket = () => {
               <div className="flex gap-2">
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.max(0.4, bracketCanvas.scale - 0.1) })}><ZoomOut size={13} /></button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.min(1.6, bracketCanvas.scale + 0.1) })}><ZoomIn size={13} /></button>
-                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Новый блок", x: 80, y: 80, width: 240, height: 90 })}><Plus size={13} /> Блок</button>
+                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "upcoming" })}><Plus size={13} /> Блок</button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Текстовая заметка", x: 120, y: 260, width: 200, height: 70 })}><Plus size={13} /> Текст</button>
               </div>
             )}
           </div>
 
-          <div className="relative border border-border bg-card h-[540px] overflow-hidden">
+          <div
+            className="relative border border-border bg-card h-[540px] overflow-hidden"
+            onWheel={(e) => {
+              const next = e.deltaY > 0 ? bracketCanvas.scale - 0.06 : bracketCanvas.scale + 0.06;
+              updateBracketCanvas({ scale: Math.min(1.8, Math.max(0.4, next)) });
+            }}
+            onMouseDown={(e) => {
+              if ((e.target as HTMLElement).closest("[data-node='1']")) return;
+              panRef.current = { startX: e.clientX, startY: e.clientY, ox: bracketCanvas.offsetX, oy: bracketCanvas.offsetY };
+            }}
+            onMouseMove={(e) => {
+              if (!panRef.current) return;
+              updateBracketCanvas({
+                offsetX: panRef.current.ox + (e.clientX - panRef.current.startX),
+                offsetY: panRef.current.oy + (e.clientY - panRef.current.startY),
+              });
+            }}
+            onMouseUp={() => {
+              panRef.current = null;
+            }}
+            onMouseLeave={() => {
+              panRef.current = null;
+            }}
+          >
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
               {bracketCanvas.edges.map((edge) => {
                 const from = nodeMap[edge.from];
@@ -167,10 +209,11 @@ const Bracket = () => {
               })}
             </svg>
 
-            <div className="absolute inset-0" style={{ transform: `scale(${bracketCanvas.scale})`, transformOrigin: "0 0" }}>
+            <div className="absolute inset-0" style={{ transform: `translate(${bracketCanvas.offsetX}px, ${bracketCanvas.offsetY}px) scale(${bracketCanvas.scale})`, transformOrigin: "0 0" }}>
               {bracketCanvas.nodes.map((node) => (
                 <div
                   key={node.id}
+                  data-node="1"
                   className={`absolute border ${node.type === "text" ? "border-accent/60 bg-accent/10" : "border-primary/60 bg-background"} p-2 shadow-sm`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                   onMouseDown={(e) => {
@@ -185,7 +228,28 @@ const Bracket = () => {
                     dragRef.current = null;
                   }}
                 >
-                  {isAdmin && editMode ? (
+                  {node.type === "match" ? (
+                    <div className="h-full flex flex-col text-xs">
+                      {isAdmin && editMode ? (
+                        <>
+                          <input className="w-full bg-transparent border-b border-border px-1 py-1" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} />
+                          <input className="w-full bg-transparent border-b border-border px-1 py-1" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} />
+                          <select className="w-full bg-transparent px-1 py-1 mt-auto" value={node.status || "upcoming"} onChange={(e) => upsertCanvasNode({ ...node, status: e.target.value as typeof node.status })}>
+                            <option value="upcoming">Скоро</option>
+                            <option value="live">LIVE</option>
+                            <option value="finished">Завершён</option>
+                            <option value="cancelled">Отменён</option>
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <p className="border-b border-border px-1 py-1">{node.player1 || "TBD"}</p>
+                          <p className="border-b border-border px-1 py-1">{node.player2 || "TBD"}</p>
+                          <p className="px-1 py-1 text-muted-foreground mt-auto">{node.status === "live" ? "LIVE" : node.status === "cancelled" ? "Отменён" : node.status === "finished" ? "Завершён" : "Скоро"}</p>
+                        </>
+                      )}
+                    </div>
+                  ) : isAdmin && editMode ? (
                     <textarea className="w-full h-full bg-transparent text-xs resize-none outline-none" value={node.label} onChange={(e) => upsertCanvasNode({ ...node, label: e.target.value })} />
                   ) : (
                     <p className="text-xs whitespace-pre-wrap">{node.label}</p>

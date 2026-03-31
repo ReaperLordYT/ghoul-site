@@ -7,6 +7,7 @@ import { useState } from 'react';
 const Index = () => {
   const { top3, texts, players, preview, isAdmin, editMode, updateTop3, addTop3, removeTop3 } = useStore();
   const [newTopName, setNewTopName] = useState('');
+  const top3WithPlaceholders = [1, 2, 3].map((place) => top3.find((t) => t.place === place) ?? { id: `placeholder-${place}`, place, name: "TBD" });
 
   return (
     <div>
@@ -42,7 +43,7 @@ const Index = () => {
       <section className="py-20 px-4">
         <InlineEdit textKey="top3Title" as="h2" className="font-display text-2xl md:text-3xl text-center text-primary text-glow tracking-widest mb-12" />
         <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
-          {top3.map((p, i) => (
+          {top3WithPlaceholders.map((p, i) => (
             <motion.div
               key={p.place}
               initial={{ opacity: 0, y: 30 }}
@@ -57,7 +58,7 @@ const Index = () => {
                 {p.place === 1 ? <Trophy className="mx-auto text-primary" size={40} /> : <Skull className="mx-auto text-muted-foreground" size={32} />}
               </div>
               <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">#{p.place}</p>
-              {isAdmin && editMode ? (
+              {isAdmin && editMode && !p.id.startsWith("placeholder-") ? (
                 <div className="space-y-2">
                   <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.place} onChange={(e) => updateTop3(p.id, { place: Number(e.target.value) || p.place })} />
                   <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.name} onChange={(e) => updateTop3(p.id, { name: e.target.value })} />

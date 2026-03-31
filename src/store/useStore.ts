@@ -40,6 +40,7 @@ export interface BracketMatch {
   player2?: string;
   winner?: string;
   score?: string;
+  status?: "upcoming" | "live" | "finished" | "cancelled";
 }
 
 export interface OrganizerItem {
@@ -77,6 +78,9 @@ export interface CanvasNode {
   width: number;
   height: number;
   label: string;
+  player1?: string;
+  player2?: string;
+  status?: "upcoming" | "live" | "finished" | "cancelled";
 }
 
 export interface CanvasEdge {
@@ -122,6 +126,7 @@ interface AppState {
   audio: AudioSettings;
   preview: PreviewSettings;
   bracketCanvas: BracketCanvasState;
+  bracketRoundTitles: Record<number, string>;
 
   login: (user: string, pass: string) => boolean;
   changeAdminPassword: (newPassword: string) => void;
@@ -165,6 +170,7 @@ interface AppState {
   removeCanvasNode: (id: string) => void;
   upsertCanvasEdge: (edge: CanvasEdge) => void;
   removeCanvasEdge: (id: string) => void;
+  setBracketRoundTitle: (round: number, title: string) => void;
 
   updateText: (key: string, value: string) => void;
 }
@@ -187,9 +193,9 @@ const defaultSchedule: MatchItem[] = [
 ];
 
 const defaultBracket: BracketMatch[] = [
-  { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", winner: "Demon King", score: "2:1" },
-  { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", winner: "Requiem", score: "1:2" },
-  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem" },
+  { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", winner: "Demon King", score: "2:1", status: "finished" },
+  { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", winner: "Requiem", score: "1:2", status: "finished" },
+  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem", status: "upcoming" },
 ];
 
 export const useStore = create<AppState>()(
@@ -206,6 +212,7 @@ export const useStore = create<AppState>()(
       news: defaultNews,
       schedule: defaultSchedule,
       bracket: defaultBracket,
+      bracketRoundTitles: { 1: "Раунд 1", 2: "Полуфиналы", 3: "Финал" },
       organizers: [
         { id: "o1", name: "DarkMaster", role: "Главный организатор", desc: "Координирует весь турнир и проверяет формат матчей." },
         { id: "o2", name: "VoidOracle", role: "Судья", desc: "Следит за соблюдением регламента и решает спорные моменты." },
@@ -229,8 +236,8 @@ export const useStore = create<AppState>()(
       },
       bracketCanvas: {
         nodes: [
-          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 86, label: "Demon King vs Soul Reaper" },
-          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 86, label: "Winner Slot" },
+          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 86, label: "Матч 1", player1: "Demon King", player2: "Soul Reaper", status: "live" },
+          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 86, label: "Матч 2", player1: "TBD", player2: "TBD", status: "upcoming" },
         ],
         edges: [{ id: "e1", from: "n1", to: "n2", label: "winner" }],
         scale: 1,
@@ -328,6 +335,7 @@ export const useStore = create<AppState>()(
           },
         })),
       removeCanvasEdge: (id) => set((s) => ({ bracketCanvas: { ...s.bracketCanvas, edges: s.bracketCanvas.edges.filter((e) => e.id !== id) } })),
+      setBracketRoundTitle: (round, title) => set((s) => ({ bracketRoundTitles: { ...s.bracketRoundTitles, [round]: title } })),
 
       updateText: (key, value) => set((s) => ({ texts: { ...s.texts, [key]: value } })),
     }),
