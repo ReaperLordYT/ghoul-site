@@ -238,8 +238,8 @@ export const useStore = create<AppState>()(
         autoplay: false,
       },
       preview: {
-        title: "Сейчас играет",
-        subtitle: "Bo3 Mid only",
+        title: "GRAND FINAL",
+        subtitle: "BEST OF 3",
         player1Id: "1",
         player2Id: "2",
       },

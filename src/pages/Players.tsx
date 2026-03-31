@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { useStore } from "@/store/useStore";
 import { Skull, Crown, XCircle, Plus, Trash2, Link2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useNavigate, useParams } from "react-router-dom";
 
 const statusIcon = {
   winner: <Crown size={16} className="text-primary" />,
@@ -24,12 +25,19 @@ const statusLabel: Record<string, string> = {
 
 const Players = () => {
   const { players, schedule, isAdmin, editMode, addPlayer, updatePlayer, removePlayer } = useStore();
+  const { playerId } = useParams();
+  const navigate = useNavigate();
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [newPlayer, setNewPlayer] = useState({ name: "", mmr: "", dotabuffUrl: "", steamUrl: "" });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [minMmr, setMinMmr] = useState("");
   const [maxMmr, setMaxMmr] = useState("");
+
+  useEffect(() => {
+    if (!playerId) return;
+    setSelectedPlayerId(playerId);
+  }, [playerId]);
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || null;
   const playerMatches = selectedPlayer
     ? schedule.filter((m) => m.player1 === selectedPlayer.name || m.player2 === selectedPlayer.name)
@@ -171,7 +179,14 @@ const Players = () => {
         </div>
       </div>
 
-      <Dialog open={Boolean(selectedPlayer)} onOpenChange={(open) => !open && setSelectedPlayerId(null)}>
+      <Dialog
+        open={Boolean(selectedPlayer)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setSelectedPlayerId(null);
+          navigate("/players", { replace: true });
+        }}
+      >
         <DialogContent className="max-w-2xl border-border bg-card">
           {selectedPlayer && (
             <>
@@ -183,6 +198,14 @@ const Players = () => {
                   Подробная карточка игрока: предстоящие, LIVE, завершенные и отмененные матчи.
                 </DialogDescription>
               </DialogHeader>
+
+              {selectedPlayer.avatar && (
+                <img
+                  src={selectedPlayer.avatar}
+                  alt={selectedPlayer.name}
+                  className="w-20 h-20 object-cover border border-border rounded-sm mx-auto"
+                />
+              )}
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <p className="text-muted-foreground">MMR: <span className="text-foreground">{selectedPlayer.mmr || '—'}</span></p>

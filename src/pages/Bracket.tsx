@@ -1,4 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useMemo, useRef, useState } from "react";
+import { useStore } from "@/store/useStore";
+import { Link2, Pencil, Plus, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 
 const statusLabel = (s?: string) => {
   if (s === "live") return "LIVE";

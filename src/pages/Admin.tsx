@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import { Trash2, Plus, ImagePlus } from 'lucide-react';
 import { toPng } from 'html-to-image';
+import { MatchPreview } from '@/components/MatchPreview';
 
 const Admin = () => {
   const store = useStore();
@@ -352,24 +353,13 @@ const Admin = () => {
                   {store.players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
-              <div ref={previewRef} className="border border-primary/40 bg-background p-4 rounded-sm">
-                <p className="font-display text-primary">{store.preview.title}</p>
-                <p className="text-xs text-muted-foreground mb-2">{store.preview.subtitle}</p>
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    {store.players.find((p) => p.id === store.preview.player1Id)?.avatar && (
-                      <img src={store.players.find((p) => p.id === store.preview.player1Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-1" />
-                    )}
-                    <p className="font-heading">{store.players.find((p) => p.id === store.preview.player1Id)?.name || "Игрок 1"}</p>
-                  </div>
-                  <p className="text-muted-foreground">VS</p>
-                  <div className="text-center">
-                    {store.players.find((p) => p.id === store.preview.player2Id)?.avatar && (
-                      <img src={store.players.find((p) => p.id === store.preview.player2Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-1" />
-                    )}
-                    <p className="font-heading">{store.players.find((p) => p.id === store.preview.player2Id)?.name || "Игрок 2"}</p>
-                  </div>
-                </div>
+              <div ref={previewRef}>
+                <MatchPreview
+                  title={store.preview.title}
+                  subtitle={store.preview.subtitle}
+                  player1={store.players.find((p) => p.id === store.preview.player1Id)}
+                  player2={store.players.find((p) => p.id === store.preview.player2Id)}
+                />
               </div>
               <button
                 className="px-3 py-2 border border-primary text-primary text-xs"

@@ -1,13 +1,25 @@
 import { motion } from 'framer-motion';
 import { InlineEdit } from '@/components/InlineEdit';
 import { useStore } from '@/store/useStore';
-import { Skull, Swords, Trophy, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { Skull, Swords, Trophy, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { MatchPreview } from '@/components/MatchPreview';
 
 const Index = () => {
-  const { top3, texts, players, preview, isAdmin, editMode, updateTop3, addTop3, removeTop3 } = useStore();
-  const [newTopName, setNewTopName] = useState('');
-  const top3WithPlaceholders = [1, 2, 3].map((place) => top3.find((t) => t.place === place) ?? { id: `placeholder-${place}`, place, name: "TBD" });
+  const { top3, texts, players, preview, isAdmin, editMode, updateTop3, addTop3 } = useStore();
+
+  const top3ByPlace = [1, 2, 3].map((place) => top3.find((t) => t.place === place) ?? { id: `placeholder-${place}`, place, name: "TBD" });
+  const tournamentCompleted = top3ByPlace.every((p) => p.name && p.name.trim() !== "" && p.name !== "TBD");
+
+  const setTop3Name = (place: number, name: string) => {
+    const value = (name || "").trim() || "TBD";
+    const existing = top3.find((t) => t.place === place);
+    if (existing) {
+      updateTop3(existing.id, { name: value });
+      return;
+    }
+    addTop3({ id: Date.now().toString(), place, name: value });
+  };
 
   return (
     <div>
@@ -42,51 +54,69 @@ const Index = () => {
       {/* Top 3 */}
       <section className="py-20 px-4">
         <InlineEdit textKey="top3Title" as="h2" className="font-display text-2xl md:text-3xl text-center text-primary text-glow tracking-widest mb-12" />
+        <p className="text-center text-muted-foreground text-sm mb-10">
+          {tournamentCompleted ? "Победители турнира" : "Турнир ещё не завершён. Победители будут объявлены позже."}
+        </p>
         <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
-          {top3WithPlaceholders.map((p, i) => (
-            <motion.div
-              key={p.place}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.2 }}
-              viewport={{ once: true }}
-              className={`relative border border-border bg-card p-8 text-center w-64 ${
-                i === 0 ? 'md:-mt-8 border-primary box-glow' : ''
-              }`}
-            >
-              <div className="text-4xl font-display text-primary mb-2">
-                {p.place === 1 ? <Trophy className="mx-auto text-primary" size={40} /> : <Skull className="mx-auto text-muted-foreground" size={32} />}
-              </div>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">#{p.place}</p>
-              {isAdmin && editMode && !p.id.startsWith("placeholder-") ? (
-                <div className="space-y-2">
-                  <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.place} onChange={(e) => updateTop3(p.id, { place: Number(e.target.value) || p.place })} />
-                  <input className="w-full bg-background border border-border px-2 py-1 text-sm text-center" value={p.name} onChange={(e) => updateTop3(p.id, { name: e.target.value })} />
-                  <button className="text-destructive" onClick={() => removeTop3(p.id)}>
-                    <Trash2 size={13} className="mx-auto" />
-                  </button>
+          {top3ByPlace.map((p, i) => {
+            const foundPlayer = players.find((pl) => pl.name === p.name);
+            const clickable = tournamentCompleted && foundPlayer;
+            const content = (
+              <>
+                <div className="text-4xl font-display text-primary mb-2">
+                  {p.place === 1 ? <Trophy className="mx-auto text-primary" size={40} /> : <Skull className="mx-auto text-muted-foreground" size={32} />}
                 </div>
-              ) : (
-                <p className="font-heading text-lg text-foreground">{p.name}</p>
-              )}
-            </motion.div>
-          ))}
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">#{p.place}</p>
+                {isAdmin && editMode ? (
+                  <div className="space-y-2">
+                    <input
+                      list="top3-players"
+                      className="w-full bg-background border border-border px-2 py-1 text-sm text-center"
+                      value={p.name}
+                      onChange={(e) => setTop3Name(p.place, e.target.value)}
+                    />
+                    {p.name !== "TBD" && (
+                      <button className="text-destructive mx-auto" onClick={() => setTop3Name(p.place, "TBD")}>
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-heading text-lg text-foreground">{p.name}</p>
+                )}
+              </>
+            );
+
+            const card = (
+              <motion.div
+                key={p.place}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.2 }}
+                viewport={{ once: true }}
+                className={`relative border border-border bg-card p-8 text-center w-64 ${
+                  i === 0 ? "md:-mt-8 border-primary box-glow" : ""
+                } ${clickable ? "hover:border-primary/60 transition-colors" : ""}`}
+              >
+                {content}
+              </motion.div>
+            );
+
+            return clickable ? (
+              <Link key={p.place} to={`/players/${foundPlayer!.id}`} className="block">
+                {card}
+              </Link>
+            ) : (
+              card
+            );
+          })}
         </div>
-        {isAdmin && editMode && (
-          <div className="max-w-sm mx-auto mt-6 flex gap-2">
-            <input className="flex-1 bg-background border border-border px-2 py-2 text-sm" placeholder="Новый игрок Top-3" value={newTopName} onChange={(e) => setNewTopName(e.target.value)} />
-            <button
-              className="px-3 border border-primary text-primary"
-              onClick={() => {
-                if (!newTopName.trim()) return;
-                addTop3({ id: Date.now().toString(), place: top3.length + 1, name: newTopName.trim() });
-                setNewTopName('');
-              }}
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-        )}
+        <datalist id="top3-players">
+          {players.map((pl) => (
+            <option key={pl.id} value={pl.name} />
+          ))}
+        </datalist>
+        {/* Top-3 редактируется прямо на карточках в режиме карандаша */}
       </section>
 
       <div className="scratch-line w-full" />
@@ -127,24 +157,13 @@ const Index = () => {
       </section>
 
       <section className="py-16 px-4 border-t border-border">
-        <div className="max-w-2xl mx-auto border border-primary/40 bg-card p-6 box-glow">
-          <p className="font-display text-sm tracking-widest text-primary">{preview.title}</p>
-          <p className="text-xs text-muted-foreground mb-4">{preview.subtitle}</p>
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-center flex-1">
-              {players.find((p) => p.id === preview.player1Id)?.avatar && (
-                <img src={players.find((p) => p.id === preview.player1Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-2" />
-              )}
-              <p className="font-heading">{players.find((p) => p.id === preview.player1Id)?.name || 'Игрок 1'}</p>
-            </div>
-            <p className="text-muted-foreground font-display">VS</p>
-            <div className="text-center flex-1">
-              {players.find((p) => p.id === preview.player2Id)?.avatar && (
-                <img src={players.find((p) => p.id === preview.player2Id)?.avatar} alt="" className="w-16 h-16 object-cover border border-border mx-auto mb-2" />
-              )}
-              <p className="font-heading">{players.find((p) => p.id === preview.player2Id)?.name || 'Игрок 2'}</p>
-            </div>
-          </div>
+        <div className="max-w-2xl mx-auto">
+          <MatchPreview
+            title={preview.title}
+            subtitle={preview.subtitle}
+            player1={players.find((p) => p.id === preview.player1Id)}
+            player2={players.find((p) => p.id === preview.player2Id)}
+          />
         </div>
       </section>
     </div>
