@@ -103,6 +103,10 @@
   input, textarea, [contenteditable] {
     cursor: text;
   }
+  select, option {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--card));
+  }
 }
 
 @layer utilities {

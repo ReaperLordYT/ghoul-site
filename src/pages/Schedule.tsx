@@ -4,7 +4,7 @@ import { Clock, Radio, CheckCircle, Ban } from 'lucide-react';
 import { parseScore } from '@/lib/score';
 
 const statusConfig = {
-  upcoming: { icon: <Clock size={14} />, label: 'Скоро', cls: 'text-muted-foreground' },
+  planned: { icon: <Clock size={14} />, label: 'Запланировано', cls: 'text-muted-foreground' },
   live: { icon: <Radio size={14} />, label: 'LIVE', cls: 'text-primary animate-flicker' },
   finished: { icon: <CheckCircle size={14} />, label: 'Завершён', cls: 'text-muted-foreground/50' },
   cancelled: { icon: <Ban size={14} />, label: 'Отменён', cls: 'text-destructive' },

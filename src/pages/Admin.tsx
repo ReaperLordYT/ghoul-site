@@ -2,7 +2,6 @@ import { useStore } from '@/store/useStore';
 import { Navigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import { Trash2, Plus, ImagePlus } from 'lucide-react';
-import { isValidScore, normalizeScoreInput } from '@/lib/score';
 import { toPng } from 'html-to-image';
 
 const Admin = () => {
@@ -93,7 +92,7 @@ const Admin = () => {
               <button
                 onClick={() => {
                   if (!playerForm.name) return;
-                  store.addPlayer({ id: Date.now().toString(), name: playerForm.name, mmr: Number(playerForm.mmr) || 0, dotabuffUrl: playerForm.dotabuffUrl, steamUrl: playerForm.steamUrl, status: 'active', matches: [], avatar: playerForm.avatar });
+                  store.addPlayer({ id: Date.now().toString(), name: playerForm.name, mmr: Number(playerForm.mmr) || 0, dotabuffUrl: playerForm.dotabuffUrl, steamUrl: playerForm.steamUrl, status: 'review', matches: [], avatar: playerForm.avatar });
                   setPlayerForm({ name: '', mmr: '', avatar: '', dotabuffUrl: '', steamUrl: '' });
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 border border-primary text-primary text-xs uppercase hover:bg-primary/10"
@@ -126,9 +125,13 @@ const Admin = () => {
                     onChange={(e) => store.updatePlayer(p.id, { status: e.target.value as any })}
                   >
                     <option value="active">Активен</option>
-                    <option value="eliminated">Выбыл</option>
+                    <option value="review">На рассмотрении</option>
+                    <option value="disqualified">Дисквалифицирован</option>
+                    <option value="rejected">Отклонён</option>
+                    <option value="left">Покинул</option>
                     <option value="winner">Победитель</option>
                   </select>
+                  <input className="bg-background border border-border text-xs text-foreground px-2 py-1 w-40" placeholder="Причина статуса" value={p.statusReason || ""} onChange={(e) => store.updatePlayer(p.id, { statusReason: e.target.value })} />
                   <button onClick={() => store.removePlayer(p.id)} className="text-destructive hover:text-destructive/80">
                     <Trash2 size={14} />
                   </button>
@@ -189,14 +192,8 @@ const Admin = () => {
             <div className="border border-border bg-card p-4 space-y-3">
               <p className="text-xs text-muted-foreground uppercase tracking-widest">Добавить матч</p>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={matchForm.player1} onChange={(e) => setMatchForm({ ...matchForm, player1: e.target.value })}>
-                  <option value="">Игрок 1</option>
-                  {store.players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                </select>
-                <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={matchForm.player2} onChange={(e) => setMatchForm({ ...matchForm, player2: e.target.value })}>
-                  <option value="">Игрок 2</option>
-                  {store.players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                </select>
+                <input list="players-list-admin" className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Игрок 1 (или впиши)" value={matchForm.player1} onChange={(e) => setMatchForm({ ...matchForm, player1: e.target.value })} />
+                <input list="players-list-admin" className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Игрок 2 (или впиши)" value={matchForm.player2} onChange={(e) => setMatchForm({ ...matchForm, player2: e.target.value })} />
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Время" value={matchForm.time} onChange={(e) => setMatchForm({ ...matchForm, time: e.target.value })} />
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Дата" value={matchForm.date} onChange={(e) => setMatchForm({ ...matchForm, date: e.target.value })} />
                 <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Раунд" value={matchForm.round} onChange={(e) => setMatchForm({ ...matchForm, round: e.target.value })} />
@@ -204,7 +201,7 @@ const Admin = () => {
               <button
                 onClick={() => {
                   if (!matchForm.player1) return;
-                  store.addMatch({ id: Date.now().toString(), ...matchForm, status: 'upcoming' });
+                  store.addMatch({ id: Date.now().toString(), ...matchForm, status: 'planned', player1Score: 0 as any, player2Score: 0 as any, score: "0:0" });
                   setMatchForm({ player1: '', player2: '', time: '', date: '', round: '' });
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 border border-primary text-primary text-xs uppercase hover:bg-primary/10"
@@ -217,12 +214,10 @@ const Admin = () => {
                 <div>
                   <p className="text-foreground text-sm">{m.player1} vs {m.player2}</p>
                   <p className="text-xs text-muted-foreground">{m.round} — {m.date} {m.time}</p>
-                  <input
-                    className={`mt-2 bg-background border text-xs text-foreground px-2 py-1 w-24 ${m.score && !isValidScore(m.score) ? 'border-destructive' : 'border-border'}`}
-                    placeholder="Счёт"
-                    value={m.score || ''}
-                    onChange={(e) => store.updateMatch(m.id, { score: normalizeScoreInput(e.target.value) })}
-                  />
+                  <div className="mt-2 grid grid-cols-2 gap-1 w-28">
+                    <input type="number" min={0} className="bg-background border border-border text-xs px-2 py-1" value={m.player1Score ?? Number((m.score || "0:0").split(":")[0])} onChange={(e) => store.updateMatch(m.id, { player1Score: Number(e.target.value) as any, score: `${Number(e.target.value)}:${m.player2Score ?? Number((m.score || "0:0").split(":")[1])}` })} />
+                    <input type="number" min={0} className="bg-background border border-border text-xs px-2 py-1" value={m.player2Score ?? Number((m.score || "0:0").split(":")[1])} onChange={(e) => store.updateMatch(m.id, { player2Score: Number(e.target.value) as any, score: `${m.player1Score ?? Number((m.score || "0:0").split(":")[0])}:${Number(e.target.value)}` })} />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <select
@@ -230,7 +225,7 @@ const Admin = () => {
                     value={m.status}
                     onChange={(e) => store.updateMatch(m.id, { status: e.target.value as any })}
                   >
-                    <option value="upcoming">Скоро</option>
+                    <option value="planned">Запланировано</option>
                     <option value="live">LIVE</option>
                     <option value="finished">Завершён</option>
                     <option value="cancelled">Отменён</option>
@@ -241,6 +236,9 @@ const Admin = () => {
             ))}
           </div>
         )}
+        <datalist id="players-list-admin">
+          {store.players.map((p) => <option key={p.id} value={p.name} />)}
+        </datalist>
 
         {tab === 'links' && (
           <div className="border border-border bg-card p-6 space-y-6">

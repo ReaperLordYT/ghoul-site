@@ -8,7 +8,8 @@ export interface Player {
   mmr?: number;
   dotabuffUrl?: string;
   steamUrl?: string;
-  status: "active" | "eliminated" | "winner";
+  status: "active" | "winner" | "review" | "disqualified" | "rejected" | "left";
+  statusReason?: string;
   matches: { opponent: string; result: "win" | "loss"; score: string }[];
 }
 
@@ -27,8 +28,10 @@ export interface MatchItem {
   player2: string;
   time: string;
   date: string;
-  status: "upcoming" | "live" | "finished" | "cancelled";
+  status: "planned" | "live" | "finished" | "cancelled";
   score?: string;
+  player1Score?: number;
+  player2Score?: number;
   round: string;
 }
 
@@ -40,7 +43,9 @@ export interface BracketMatch {
   player2?: string;
   winner?: string;
   score?: string;
-  status?: "upcoming" | "live" | "finished" | "cancelled";
+  status?: "planned" | "live" | "finished" | "cancelled";
+  player1Score?: number;
+  player2Score?: number;
 }
 
 export interface OrganizerItem {
@@ -80,7 +85,11 @@ export interface CanvasNode {
   label: string;
   player1?: string;
   player2?: string;
-  status?: "upcoming" | "live" | "finished" | "cancelled";
+  status?: "planned" | "live" | "finished" | "cancelled";
+  player1Id?: string;
+  player2Id?: string;
+  player1Avatar?: string;
+  player2Avatar?: string;
 }
 
 export interface CanvasEdge {
@@ -179,7 +188,7 @@ const defaultPlayers: Player[] = [
   { id: "1", name: "Demon King", mmr: 9200, dotabuffUrl: "https://www.dotabuff.com", steamUrl: "https://steamcommunity.com", status: "winner", matches: [{ opponent: "Soul Reaper", result: "win", score: "2:1" }] },
   { id: "2", name: "Soul Reaper", mmr: 8900, status: "active", matches: [{ opponent: "Demon King", result: "loss", score: "1:2" }] },
   { id: "3", name: "Shadow Spawn", mmr: 8500, status: "active", matches: [] },
-  { id: "4", name: "Requiem", mmr: 8800, status: "active", matches: [] },
+  { id: "4", name: "Requiem", mmr: 8800, status: "review", statusReason: "Профиль на проверке", matches: [] },
 ];
 
 const defaultNews: NewsItem[] = [
@@ -188,14 +197,14 @@ const defaultNews: NewsItem[] = [
 ];
 
 const defaultSchedule: MatchItem[] = [
-  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "upcoming", round: "Полуфинал" },
-  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "upcoming", round: "Полуфинал" },
+  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0" },
+  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0" },
 ];
 
 const defaultBracket: BracketMatch[] = [
   { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", winner: "Demon King", score: "2:1", status: "finished" },
   { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", winner: "Requiem", score: "1:2", status: "finished" },
-  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem", status: "upcoming" },
+  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem", status: "planned" },
 ];
 
 export const useStore = create<AppState>()(
@@ -236,8 +245,8 @@ export const useStore = create<AppState>()(
       },
       bracketCanvas: {
         nodes: [
-          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 86, label: "Матч 1", player1: "Demon King", player2: "Soul Reaper", status: "live" },
-          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 86, label: "Матч 2", player1: "TBD", player2: "TBD", status: "upcoming" },
+          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 96, label: "Матч 1", player1: "Demon King", player2: "Soul Reaper", status: "live" },
+          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 96, label: "Матч 2", player1: "TBD", player2: "TBD", status: "planned" },
         ],
         edges: [{ id: "e1", from: "n1", to: "n2", label: "winner" }],
         scale: 1,

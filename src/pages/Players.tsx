@@ -7,23 +7,58 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 const statusIcon = {
   winner: <Crown size={16} className="text-primary" />,
   active: <Skull size={16} className="text-foreground" />,
-  eliminated: <XCircle size={16} className="text-muted-foreground" />,
+  review: <Skull size={16} className="text-foreground" />,
+  disqualified: <XCircle size={16} className="text-destructive" />,
+  rejected: <XCircle size={16} className="text-destructive" />,
+  left: <XCircle size={16} className="text-muted-foreground" />,
+};
+
+const statusLabel: Record<string, string> = {
+  active: "Активен",
+  winner: "Победитель",
+  review: "На рассмотрении",
+  disqualified: "Дисквалифицирован",
+  rejected: "Отклонён",
+  left: "Покинул",
 };
 
 const Players = () => {
   const { players, schedule, isAdmin, editMode, addPlayer, updatePlayer, removePlayer } = useStore();
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [newPlayer, setNewPlayer] = useState({ name: "", mmr: "", dotabuffUrl: "", steamUrl: "" });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [minMmr, setMinMmr] = useState("");
+  const [maxMmr, setMaxMmr] = useState("");
   const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || null;
   const playerMatches = selectedPlayer
     ? schedule.filter((m) => m.player1 === selectedPlayer.name || m.player2 === selectedPlayer.name)
     : [];
+  const filteredPlayers = players.filter((p) => {
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (minMmr && (p.mmr || 0) < Number(minMmr)) return false;
+    if (maxMmr && (p.mmr || 0) > Number(maxMmr)) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen py-20 px-4">
       <div className="max-w-4xl mx-auto">
         <h1 className="font-display text-3xl text-primary text-glow tracking-widest text-center mb-2">ИГРОКИ</h1>
         <p className="text-center text-muted-foreground text-sm mb-12">только достойные</p>
+        <div className="grid md:grid-cols-4 gap-2 mb-6">
+          <input className="border border-border bg-background px-2 py-2 text-sm" placeholder="Поиск по нику" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="number" className="border border-border bg-background px-2 py-2 text-sm" placeholder="MMR от" value={minMmr} onChange={(e) => setMinMmr(e.target.value)} />
+          <input type="number" className="border border-border bg-background px-2 py-2 text-sm" placeholder="MMR до" value={maxMmr} onChange={(e) => setMaxMmr(e.target.value)} />
+          <select className="border border-border bg-background px-2 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">Все статусы</option>
+            {Object.entries(statusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div className="mb-6 border border-border bg-card p-3 text-xs text-muted-foreground">
+          Справка по статусам: Активен - участвует сейчас; На рассмотрении - заявка проверяется; Дисквалифицирован - исключён решением администрации; Отклонён - заявка отклонена; Покинул - ушёл из турнира; Победитель - завершил турнир в топе.
+        </div>
 
         {isAdmin && editMode && (
           <div className="border border-border bg-card p-4 mb-6 box-glow">
@@ -56,7 +91,7 @@ const Players = () => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {players.map((p, i) => (
+          {filteredPlayers.map((p, i) => (
             <motion.div
               key={p.id}
               initial={{ opacity: 0, y: 20 }}
@@ -64,7 +99,7 @@ const Players = () => {
               transition={{ delay: i * 0.05 }}
               viewport={{ once: true }}
               className={`border bg-card p-5 relative overflow-hidden group transition-colors hover:border-primary/50 cursor-pointer ${
-                p.status === 'winner' ? 'border-primary box-glow' : p.status === 'eliminated' ? 'border-border/30 opacity-60' : 'border-border'
+                p.status === 'winner' ? 'border-primary box-glow' : ['disqualified', 'rejected', 'left'].includes(p.status) ? 'border-border/30 opacity-60' : 'border-border'
               }`}
               onClick={() => setSelectedPlayerId(p.id)}
             >
@@ -79,9 +114,10 @@ const Players = () => {
               </div>
               <div className="space-y-1 text-xs text-muted-foreground">
                 {p.mmr && <p>MMR: <span className="text-foreground">{p.mmr}</span></p>}
-                <p>Статус: <span className={p.status === 'winner' ? 'text-primary' : p.status === 'eliminated' ? 'text-destructive' : 'text-foreground'}>{
-                  p.status === 'winner' ? 'Победитель' : p.status === 'eliminated' ? 'Выбыл' : 'Активен'
+                <p>Статус: <span className={p.status === 'winner' ? 'text-primary' : ['disqualified', 'rejected'].includes(p.status) ? 'text-destructive' : 'text-foreground'}>{
+                statusLabel[p.status] || p.status
                 }</span></p>
+                {p.statusReason && <p>Причина: <span className="text-foreground">{p.statusReason}</span></p>}
               </div>
               <div className="mt-3 flex gap-2">
                 {p.dotabuffUrl && (
@@ -104,13 +140,17 @@ const Players = () => {
                   <div className="flex items-center justify-between">
                     <select className="border border-border bg-background px-2 py-1 text-xs" value={p.status} onChange={(e) => updatePlayer(p.id, { status: e.target.value as typeof p.status })}>
                       <option value="active">Активен</option>
-                      <option value="eliminated">Выбыл</option>
+                      <option value="review">На рассмотрении</option>
+                      <option value="disqualified">Дисквалифицирован</option>
+                      <option value="rejected">Отклонён</option>
+                      <option value="left">Покинул</option>
                       <option value="winner">Победитель</option>
                     </select>
                     <button className="text-destructive" onClick={() => removePlayer(p.id)}>
                       <Trash2 size={13} />
                     </button>
                   </div>
+                  <input className="w-full border border-border bg-background px-2 py-1 text-xs" placeholder="Причина статуса (если нужно)" value={p.statusReason || ""} onChange={(e) => updatePlayer(p.id, { statusReason: e.target.value })} />
                 </div>
               )}
               {p.matches.length > 0 && (
@@ -182,7 +222,7 @@ const Players = () => {
                               ? 'text-destructive'
                               : 'text-muted-foreground'
                       }>
-                        {match.status === 'upcoming' && 'Скоро'}
+                        {match.status === 'planned' && 'Запланировано'}
                         {match.status === 'live' && 'LIVE'}
                         {match.status === 'finished' && 'Завершен'}
                         {match.status === 'cancelled' && 'Отменен'}
