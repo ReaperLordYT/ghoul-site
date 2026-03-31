@@ -3,10 +3,9 @@ import { InlineEdit } from '@/components/InlineEdit';
 import { useStore } from '@/store/useStore';
 import { Skull, Swords, Trophy, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MatchPreview } from '@/components/MatchPreview';
 
 const Index = () => {
-  const { top3, texts, players, preview, isAdmin, editMode, updateTop3, addTop3 } = useStore();
+  const { top3, texts, players, schedule, isAdmin, editMode, updateTop3, addTop3 } = useStore();
 
   const top3ByPlace = [1, 2, 3].map((place) => top3.find((t) => t.place === place) ?? { id: `placeholder-${place}`, place, name: "TBD" });
   const tournamentCompleted = top3ByPlace.every((p) => p.name && p.name.trim() !== "" && p.name !== "TBD");
@@ -54,11 +53,14 @@ const Index = () => {
       {/* Top 3 */}
       <section className="py-20 px-4">
         <InlineEdit textKey="top3Title" as="h2" className="font-display text-2xl md:text-3xl text-center text-primary text-glow tracking-widest mb-12" />
-        <p className="text-center text-muted-foreground text-sm mb-10">
-          {tournamentCompleted ? "Победители турнира" : "Турнир ещё не завершён. Победители будут объявлены позже."}
-        </p>
-        <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
-          {top3ByPlace.map((p, i) => {
+        <div className="max-w-4xl mx-auto mb-10">
+          <div className={`border p-4 md:p-5 text-center font-heading tracking-wide ${tournamentCompleted ? "border-primary/50 bg-primary/10 text-primary box-glow" : "border-border bg-card text-foreground"}`}>
+            {tournamentCompleted ? "Турнир завершён" : "Турнир ещё не завершён. Победители будут объявлены позже."}
+          </div>
+        </div>
+        {tournamentCompleted && (
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
+            {top3ByPlace.map((p, i) => {
             const foundPlayer = players.find((pl) => pl.name === p.name);
             const clickable = tournamentCompleted && foundPlayer;
             const content = (
@@ -109,8 +111,9 @@ const Index = () => {
             ) : (
               card
             );
-          })}
-        </div>
+            })}
+          </div>
+        )}
         <datalist id="top3-players">
           {players.map((pl) => (
             <option key={pl.id} value={pl.name} />
@@ -157,13 +160,16 @@ const Index = () => {
       </section>
 
       <section className="py-16 px-4 border-t border-border">
-        <div className="max-w-2xl mx-auto">
-          <MatchPreview
-            title={preview.title}
-            subtitle={preview.subtitle}
-            player1={players.find((p) => p.id === preview.player1Id)}
-            player2={players.find((p) => p.id === preview.player2Id)}
-          />
+        <div className="max-w-3xl mx-auto">
+          <h3 className="font-display text-xl text-primary tracking-widest mb-4 text-center">Ближайшие матчи</h3>
+          <div className="space-y-3">
+            {schedule.slice(0, 4).map((m) => (
+              <div key={m.id} className="border border-border bg-card px-4 py-3 flex items-center justify-between">
+                <p className="text-sm font-heading">{m.player1} <span className="text-muted-foreground">vs</span> {m.player2}</p>
+                <p className="text-xs text-muted-foreground">{m.round} · {m.date} · {m.time}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </div>

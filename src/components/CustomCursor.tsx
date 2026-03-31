@@ -30,35 +30,37 @@ export const CustomCursor = () => {
   return (
     <>
       <div
-        className={`kaneki-cursor ${active ? "is-active" : ""}`}
+        className={`kaneki-cursor eye-cursor ${active ? "is-active" : ""}`}
         style={{ left: point.x, top: point.y }}
       />
       <style>{`
-        .kaneki-cursor {
+        .kaneki-cursor.eye-cursor {
           position: fixed;
-          width: 18px;
-          height: 18px;
+          width: 26px;
+          height: 26px;
           pointer-events: none;
           z-index: 9999;
-          border: 1.5px solid hsl(var(--primary));
-          border-radius: 50%;
+          clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+          border: 1px solid hsl(var(--primary) / 0.9);
+          background: linear-gradient(135deg, hsl(260 60% 18% / 0.65), hsl(var(--primary) / 0.2));
           transform: translate(-50%, -50%);
-          transition: width 120ms ease, height 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
-          box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15);
+          transition: width 120ms ease, height 120ms ease, border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease, transform 120ms ease;
+          box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12), 0 0 14px hsl(var(--primary) / 0.4);
         }
-        .kaneki-cursor::after {
+        .kaneki-cursor.eye-cursor::after {
           content: "";
           position: absolute;
-          inset: 4px;
+          inset: 7px;
           border-radius: 9999px;
-          background: hsl(var(--primary) / 0.85);
+          background: radial-gradient(circle, hsl(var(--primary) / 0.95) 0%, hsl(var(--primary) / 0.55) 55%, transparent 100%);
         }
-        .kaneki-cursor.is-active {
-          width: 30px;
-          height: 30px;
-          border-color: hsl(var(--accent));
-          box-shadow: 0 0 0 3px hsl(var(--accent) / 0.2), 0 0 22px hsl(var(--accent) / 0.45);
-          background-color: hsl(var(--accent) / 0.08);
+        .kaneki-cursor.eye-cursor.is-active {
+          width: 32px;
+          height: 32px;
+          border-color: hsl(var(--primary));
+          background: linear-gradient(135deg, hsl(var(--primary) / 0.35), hsl(var(--primary) / 0.12));
+          box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2), 0 0 26px hsl(var(--primary) / 0.62);
+          transform: translate(-50%, -50%) scale(1.02);
         }
         .cursor-trail {
           position: fixed;

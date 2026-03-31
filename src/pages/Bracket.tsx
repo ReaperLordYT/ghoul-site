@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Link2, Pencil, Plus, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { Link2, Pencil, Plus, Radio, Trash2, ZoomIn, ZoomOut, Type } from "lucide-react";
 
 const statusLabel = (s?: string) => {
   if (s === "live") return "LIVE";
@@ -64,7 +64,14 @@ const Bracket = () => {
                 )}
                 <div className="space-y-4" style={{ paddingTop: ri * 36 }}>
                   {matches.map((m) => (
-                    <div key={m.id} className="border border-border bg-card relative group cursor-pointer" onClick={() => setSelectedMatchId(m.id)}>
+                    <div
+                      key={m.id}
+                      className="border border-border bg-card relative group cursor-pointer"
+                      onClick={() => {
+                        if (isAdmin && editMode) return;
+                        setSelectedMatchId(m.id);
+                      }}
+                    >
                       {editingId === m.id ? (
                         <div className="p-3 space-y-2">
                           <input list="players-list" className="w-full bg-background border border-border px-2 py-1 text-xs" placeholder="Игрок 1 (или впиши вручную)" value={form.player1} onChange={(e) => setForm((s) => ({ ...s, player1: e.target.value }))} />
@@ -123,12 +130,13 @@ const Bracket = () => {
 
         <div className="mt-16">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl tracking-widest">Canvas-конструктор</h2>
+            <h2 className="font-display text-xl tracking-widest">Графическая сетка</h2>
             {isAdmin && editMode && (
               <div className="flex gap-2">
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.max(0.4, bracketCanvas.scale - 0.1) })}><ZoomOut size={13} /></button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.min(1.8, bracketCanvas.scale + 0.1) })}><ZoomIn size={13} /></button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "planned" })}><Plus size={13} /> Блок</button>
+                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Раунд / заметка", x: 120, y: 240, width: 220, height: 72 })}><Type size={13} /> Текст</button>
               </div>
             )}
           </div>
@@ -159,15 +167,37 @@ const Bracket = () => {
                 <div
                   key={node.id}
                   data-node="1"
-                  className="absolute border border-primary/60 bg-background p-2 shadow-sm text-xs"
+                  className={`absolute p-2 shadow-sm text-xs ${node.type === "text" ? "border border-accent/70 bg-accent/10" : "border border-primary/60 bg-background"}`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
-                  onMouseDown={(e) => { if (!(isAdmin && editMode)) return; dragRef.current = { id: node.id, dx: e.clientX - node.x, dy: e.clientY - node.y }; }}
+                  onMouseDown={(e) => {
+                    if (!(isAdmin && editMode)) return;
+                    const target = e.target as HTMLElement;
+                    if (["INPUT", "SELECT", "TEXTAREA", "BUTTON", "OPTION"].includes(target.tagName)) {
+                      e.stopPropagation();
+                      return;
+                    }
+                    dragRef.current = { id: node.id, dx: e.clientX - node.x, dy: e.clientY - node.y };
+                  }}
                   onMouseMove={(e) => { if (!dragRef.current || dragRef.current.id !== node.id || !(isAdmin && editMode)) return; upsertCanvasNode({ ...node, x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy }); }}
                   onMouseUp={() => { dragRef.current = null; }}
                 >
-                  <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)} />
-                  <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)} />
-                  <p className="px-1 py-1 mt-auto text-muted-foreground">{statusLabel(node.status)}</p>
+                  {node.type === "text" ? (
+                    <textarea
+                      className="w-full h-full bg-transparent resize-none outline-none text-xs"
+                      value={node.label}
+                      onChange={(e) => upsertCanvasNode({ ...node, label: e.target.value })}
+                      disabled={!(isAdmin && editMode)}
+                    />
+                  ) : (
+                    <>
+                      <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)} />
+                      <input list="players-list" className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)} />
+                      <div className="px-1 py-1 mt-auto text-muted-foreground inline-flex items-center gap-1">
+                        {node.status === "live" && <Radio size={11} className="text-primary animate-flicker" />}
+                        {statusLabel(node.status)}
+                      </div>
+                    </>
+                  )}
                   {isAdmin && editMode && (
                     <div className="absolute -top-7 right-0 flex gap-1">
                       <button className="border border-border bg-card p-1" onClick={() => setEdgeModeFrom((prev) => (prev === node.id ? null : node.id))}><Link2 size={12} /></button>

@@ -32,6 +32,7 @@ export interface MatchItem {
   score?: string;
   player1Score?: number;
   player2Score?: number;
+  streamUrl?: string;
   round: string;
 }
 
@@ -197,8 +198,8 @@ const defaultNews: NewsItem[] = [
 ];
 
 const defaultSchedule: MatchItem[] = [
-  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0" },
-  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0" },
+  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
+  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
 ];
 
 const defaultBracket: BracketMatch[] = [
