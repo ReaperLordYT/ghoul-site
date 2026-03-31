@@ -142,7 +142,7 @@ const Bracket = () => {
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.max(0.4, bracketCanvas.scale - 0.1) })}><ZoomOut size={13} /></button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: Math.min(1.8, bracketCanvas.scale + 0.1) })}><ZoomIn size={13} /></button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "planned" })}><Plus size={13} /> Блок</button>
-                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Раунд / заметка", x: 120, y: 240, width: 220, height: 72 })}><Type size={13} /> Текст</button>
+                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Раунд / заметка", x: 120, y: 240, width: 220, height: 56 })}><Type size={13} /> Текст</button>
               </div>
             )}
           </div>
@@ -182,40 +182,55 @@ const Bracket = () => {
                 <div
                   key={node.id}
                   data-node="1"
-                  className={`absolute p-2 shadow-sm text-xs ${node.type === "text" ? "border border-accent/70 bg-accent/10" : "border border-primary/60 bg-background"}`}
+                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-sm border border-accent/60 bg-accent/10" : "p-2 rounded-sm border border-primary/30 bg-background/70 ring-1 ring-primary/10"}`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                   onMouseDown={(e) => {
                     if (!(isAdmin && editMode)) return;
-                    const target = e.target as HTMLElement;
-                    if (["INPUT", "SELECT", "TEXTAREA", "BUTTON", "OPTION"].includes(target.tagName)) {
-                      e.stopPropagation();
-                      return;
-                    }
+                    const t = e.target as HTMLElement;
+                    const handle = t.closest('[data-drag-handle="1"]');
+                    if (!handle) return;
+                    e.stopPropagation();
                     dragRef.current = { id: node.id, dx: e.clientX - node.x, dy: e.clientY - node.y };
                   }}
                   onMouseMove={(e) => { if (!dragRef.current || dragRef.current.id !== node.id || !(isAdmin && editMode)) return; upsertCanvasNode({ ...node, x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy }); }}
                   onMouseUp={() => { dragRef.current = null; }}
                 >
+                  {isAdmin && editMode && (
+                    <div
+                      data-drag-handle="1"
+                      className="absolute top-0 left-0 right-0 h-7 cursor-grab bg-background/55 border-b border-border/60 rounded-t-sm flex items-center justify-center"
+                      title="Перетаскивание"
+                      onMouseDown={(e) => {
+                        if (!(isAdmin && editMode)) return;
+                        e.stopPropagation();
+                        dragRef.current = { id: node.id, dx: e.clientX - node.x, dy: e.clientY - node.y };
+                      }}
+                    />
+                  )}
                   {node.type === "text" ? (
                     <textarea
-                      className="w-full h-full bg-transparent resize-none outline-none text-xs"
+                      className="w-full h-full bg-transparent resize-none outline-none text-[11px] leading-[1.1] pt-5"
                       value={node.label}
                       onChange={(e) => upsertCanvasNode({ ...node, label: e.target.value })}
                       disabled={!(isAdmin && editMode)}
                     />
                   ) : (
                     <>
-                      <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)}>
-                        <option value="TBD">TBD</option>
-                        {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                      </select>
-                      <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)}>
-                        <option value="TBD">TBD</option>
-                        {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                      </select>
-                      <div className="px-1 py-1 mt-auto text-muted-foreground inline-flex items-center gap-1">
-                        {node.status === "live" && <Radio size={11} className="text-primary animate-flicker" />}
-                        {statusLabel(node.status)}
+                      <div className="pt-5 h-full flex flex-col">
+                        <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player1 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player1: e.target.value })} disabled={!(isAdmin && editMode)}>
+                          <option value="TBD">TBD</option>
+                          {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                        </select>
+                        <select className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]" value={node.player2 || "TBD"} onChange={(e) => upsertCanvasNode({ ...node, player2: e.target.value })} disabled={!(isAdmin && editMode)}>
+                          <option value="TBD">TBD</option>
+                          {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                        </select>
+                        <div
+                          className={`px-1 py-1 mt-auto inline-flex items-center gap-1 ${node.status === "live" ? "text-primary" : node.status === "cancelled" ? "text-destructive" : node.status === "finished" ? "text-foreground" : "text-muted-foreground"}`}
+                        >
+                          {node.status === "live" && <Radio size={11} className="animate-flicker" />}
+                          {statusLabel(node.status)}
+                        </div>
                       </div>
                     </>
                   )}

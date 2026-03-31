@@ -41,20 +41,22 @@ const Schedule = () => {
           <div className="border border-border bg-card p-4 mb-8 box-glow">
             <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Добавить матч</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <input
-                list="players-list-schedule"
-                className="bg-background border border-border px-3 py-2 text-sm text-foreground"
-                placeholder="Игрок 1 (или впиши)"
-                value={form.player1}
-                onChange={(e) => setForm((s) => ({ ...s, player1: e.target.value }))}
-              />
-              <input
-                list="players-list-schedule"
-                className="bg-background border border-border px-3 py-2 text-sm text-foreground"
-                placeholder="Игрок 2 (или впиши)"
-                value={form.player2}
-                onChange={(e) => setForm((s) => ({ ...s, player2: e.target.value }))}
-              />
+              <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={form.player1} onChange={(e) => setForm((s) => ({ ...s, player1: e.target.value }))}>
+                <option value="">Игрок 1</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={form.player2} onChange={(e) => setForm((s) => ({ ...s, player2: e.target.value }))}>
+                <option value="">Игрок 2</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
               <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Время" value={form.time} onChange={(e) => setForm((s) => ({ ...s, time: e.target.value }))} />
               <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Дата" value={form.date} onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))} />
               <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Раунд" value={form.round} onChange={(e) => setForm((s) => ({ ...s, round: e.target.value }))} />
@@ -109,11 +111,6 @@ const Schedule = () => {
                 <Plus size={14} /> Добавить
               </button>
             </div>
-            <datalist id="players-list-schedule">
-              {players.map((p) => (
-                <option key={p.id} value={p.name} />
-              ))}
-            </datalist>
           </div>
         )}
 

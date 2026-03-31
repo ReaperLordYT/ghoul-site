@@ -15,22 +15,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       audioRef.current.pause();
       return;
     }
-    if (audio.autoplay) {
-      void audioRef.current.play().catch(() => {
-        // Ignore autoplay restrictions in browser.
-      });
-    }
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
   }, [audio, soundsEnabled]);
 
   useEffect(() => {
     if (!soundsEnabled) return;
     const onInteract = () => {
       if (!audioRef.current) return;
+      audioRef.current.currentTime = 0;
       void audioRef.current.play().catch(() => {
-        // ignore autoplay policy errors
+        // Ignore autoplay/policy restrictions.
       });
     };
-    window.addEventListener("pointerdown", onInteract, { once: true });
+    window.addEventListener("pointerdown", onInteract);
     return () => window.removeEventListener("pointerdown", onInteract);
   }, [soundsEnabled, audio.url]);
 
@@ -41,7 +39,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className={`min-h-screen noise-bg ${glitchEnabled ? 'scanline-overlay' : ''}`}>
       <CustomCursor />
-      <audio ref={audioRef} src={audio.url} loop preload="auto" />
+      <audio ref={audioRef} src={audio.url} preload="auto" />
       <Navbar />
       <button
         className="fixed right-4 bottom-4 z-50 border border-border bg-card px-3 py-2 text-xs text-foreground hover:border-primary/60"

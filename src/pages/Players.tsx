@@ -42,6 +42,7 @@ const Players = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [minMmr, setMinMmr] = useState("");
   const [maxMmr, setMaxMmr] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (!playerId) return;
@@ -89,9 +90,40 @@ const Players = () => {
             {Object.entries(statusLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
-        <div className="mb-6 border border-border bg-card p-3 text-xs text-muted-foreground">
-          Справка по статусам: Активен - участвует сейчас; На рассмотрении - заявка проверяется; Дисквалифицирован - исключён решением администрации; Отклонён - заявка отклонена; Покинул - ушёл из турнира; Победитель - завершил турнир в топе.
+        <div className="mb-6 flex items-center justify-end gap-2">
+          <button
+            className="w-9 h-9 flex items-center justify-center rounded-md border border-border bg-card hover:border-primary/50 hover:text-primary transition-colors"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Справка по статусам"
+          >
+            <span className="font-display">?</span>
+          </button>
         </div>
+
+        <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+          <DialogContent className="max-w-xl border-border bg-card">
+            <DialogHeader>
+              <DialogTitle className="font-display tracking-widest text-primary text-glow">Справка по статусам</DialogTitle>
+              <DialogDescription>Ниже — что означает каждый статус игрока.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              {Object.entries(statusLabel).map(([key, label]) => (
+                <div key={key} className="flex items-center gap-3">
+                  <span className={`font-display text-xs ${statusClass[key] || "text-foreground"}`}>{label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {key === "active" && "участвует сейчас"}
+                    {key === "winner" && "завершил турнир в топе"}
+                    {key === "review" && "заявка на рассмотрении"}
+                    {key === "disqualified" && "дисквалифицирован решением администрации"}
+                    {key === "rejected" && "заявка отклонена"}
+                    {key === "left" && "покинул турнир"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {isAdmin && editMode && (
           <div className="border border-border bg-card p-4 mb-6 box-glow">

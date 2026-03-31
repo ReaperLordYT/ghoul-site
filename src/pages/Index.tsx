@@ -71,17 +71,18 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">#{p.place}</p>
                 {isAdmin && editMode ? (
                   <div className="space-y-2">
-                    <input
-                      list="top3-players"
-                      className="w-full bg-background border border-border px-2 py-1 text-sm text-center"
+                    <select
+                      className="w-full bg-background border border-border px-2 py-2 text-sm text-center"
                       value={p.name}
                       onChange={(e) => setTop3Name(p.place, e.target.value)}
-                    />
-                    {p.name !== "TBD" && (
-                      <button className="text-destructive mx-auto" onClick={() => setTop3Name(p.place, "TBD")}>
-                        <Trash2 size={13} />
-                      </button>
-                    )}
+                    >
+                      <option value="TBD">TBD</option>
+                      {players.map((pl) => (
+                        <option key={pl.id} value={pl.name}>
+                          {pl.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 ) : (
                   <p className="font-heading text-lg text-foreground">{p.name}</p>
@@ -114,11 +115,7 @@ const Index = () => {
             })}
           </div>
         )}
-        <datalist id="top3-players">
-          {players.map((pl) => (
-            <option key={pl.id} value={pl.name} />
-          ))}
-        </datalist>
+        {/* winners выбираются через меню select */}
         {/* Top-3 редактируется прямо на карточках в режиме карандаша */}
       </section>
 
