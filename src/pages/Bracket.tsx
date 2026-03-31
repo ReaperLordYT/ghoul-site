@@ -13,7 +13,7 @@ const statusLabel = (s?: string) => {
 
 const Bracket = () => {
   const store = useStore();
-  const { bracket, schedule, players, isAdmin, editMode, addBracketMatch, removeBracketMatch, updateBracketMatch, bracketCanvas, bracketRoundTitles, setBracketRoundTitle, updateBracketCanvas, upsertCanvasNode, removeCanvasNode, upsertCanvasEdge, removeCanvasEdge } = store;
+  const { bracket, schedule, players, isAdmin, editMode, addMatch, addBracketMatch, removeBracketMatch, updateBracketMatch, bracketCanvas, bracketRoundTitles, setBracketRoundTitle, updateBracketCanvas, upsertCanvasNode, removeCanvasNode, upsertCanvasEdge, removeCanvasEdge } = store;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [form, setForm] = useState({ player1: "", player2: "", status: "planned" as "planned" | "live" | "finished" | "cancelled", player1Score: 0, player2Score: 0 });
@@ -37,7 +37,7 @@ const Bracket = () => {
 
   const saveEdit = () => {
     if (!editingId) return;
-    updateBracketMatch(editingId, {
+    const patch = {
       player1: form.player1 || "TBD",
       player2: form.player2 || "TBD",
       status: form.status,
@@ -45,6 +45,15 @@ const Bracket = () => {
       player2Score: form.player2Score,
       score: `${form.player1Score}:${form.player2Score}`,
       winner: form.player1Score === form.player2Score ? undefined : form.player1Score > form.player2Score ? form.player1 || undefined : form.player2 || undefined,
+    };
+    updateBracketMatch(editingId, patch);
+    store.updateMatch(`s-${editingId}`, {
+      player1: patch.player1,
+      player2: patch.player2,
+      status: patch.status,
+      player1Score: patch.player1Score,
+      player2Score: patch.player2Score,
+      score: patch.score,
     });
     setEditingId(null);
   };
@@ -55,6 +64,24 @@ const Bracket = () => {
         (s.player1 === p1 && s.player2 === p2) ||
         (s.player1 === p2 && s.player2 === p1),
     );
+
+  const ensureScheduleForBracket = (id: string, round: number, player1 = "TBD", player2 = "TBD") => {
+    const exists = schedule.some((m) => m.id === `s-${id}`);
+    if (exists) return;
+    addMatch({
+      id: `s-${id}`,
+      player1,
+      player2,
+      time: "18:00",
+      date: "",
+      round: bracketRoundTitles[round] || `Раунд ${round}`,
+      status: "planned",
+      player1Score: 0,
+      player2Score: 0,
+      score: "0:0",
+      streamUrl: "",
+    });
+  };
 
   return (
     <div className="min-h-screen py-20 px-4">
@@ -144,12 +171,21 @@ const Bracket = () => {
                       )}
                     </div>
                   ))}
-                  {isAdmin && editMode && <button onClick={() => addBracketMatch({ id: `b-${Date.now()}`, round, position: matches.length, player1: "TBD", player2: "TBD", status: "planned", player1Score: 0, player2Score: 0, score: "0:0" })} className="w-full border border-dashed border-border text-xs py-3 flex items-center justify-center gap-1"><Plus size={12} /> Добавить слот</button>}
+                  {isAdmin && editMode && <button onClick={() => {
+                    const id = `b-${Date.now()}`;
+                    addBracketMatch({ id, round, position: matches.length, player1: "TBD", player2: "TBD", status: "planned", player1Score: 0, player2Score: 0, score: "0:0" });
+                    ensureScheduleForBracket(id, round);
+                  }} className="w-full border border-dashed border-border text-xs py-3 flex items-center justify-center gap-1"><Plus size={12} /> Добавить слот</button>}
                 </div>
               </div>
             );
           })}
-          {isAdmin && editMode && <div className="flex-shrink-0 w-60 pt-8"><button onClick={() => addBracketMatch({ id: `b-${Date.now()}`, round: (Math.max(...rounds) || 0) + 1, position: 0, player1: "TBD", player2: "TBD", status: "planned", player1Score: 0, player2Score: 0, score: "0:0" })} className="border border-dashed border-border text-xs px-6 py-4 flex items-center gap-2"><Plus size={14} /> Новый раунд</button></div>}
+          {isAdmin && editMode && <div className="flex-shrink-0 w-60 pt-8"><button onClick={() => {
+            const id = `b-${Date.now()}`;
+            const newRound = (Math.max(...rounds) || 0) + 1;
+            addBracketMatch({ id, round: newRound, position: 0, player1: "TBD", player2: "TBD", status: "planned", player1Score: 0, player2Score: 0, score: "0:0" });
+            ensureScheduleForBracket(id, newRound);
+          }} className="border border-dashed border-border text-xs px-6 py-4 flex items-center gap-2"><Plus size={14} /> Новый раунд</button></div>}
         </div>
         <datalist id="players-list">{players.map((p) => <option key={p.id} value={p.name} />)}</datalist>
 
@@ -169,7 +205,12 @@ const Bracket = () => {
               <button className="px-3 py-1 border border-border text-xs" onClick={() => updateBracketCanvas({ scale: 1, offsetX: 0, offsetY: 0 })}>100%</button>
               {isAdmin && editMode && (
                 <>
-                <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `n-${Date.now()}`, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "planned" })}><Plus size={13} /> Блок</button>
+                <button className="px-3 py-1 border border-border text-xs" onClick={() => {
+                  const id = `n-${Date.now()}`;
+                  upsertCanvasNode({ id, type: "match", label: "Матч", x: 80, y: 80, width: 250, height: 96, player1: "TBD", player2: "TBD", status: "planned" });
+                  const syntheticRound = Math.max(...rounds, 1);
+                  ensureScheduleForBracket(id, syntheticRound);
+                }}><Plus size={13} /> Блок</button>
                 <button className="px-3 py-1 border border-border text-xs" onClick={() => upsertCanvasNode({ id: `t-${Date.now()}`, type: "text", label: "Раунд / заметка", x: 120, y: 240, width: 220, height: 56 })}><Type size={13} /> Текст</button>
                 </>
               )}
@@ -185,7 +226,8 @@ const Bracket = () => {
             onWheel={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              updateBracketCanvas({ scale: Math.min(1.8, Math.max(0.4, bracketCanvas.scale + (e.deltaY > 0 ? -0.06 : 0.06))) });
+              const step = e.ctrlKey || e.metaKey ? 0.08 : 0.04;
+              updateBracketCanvas({ scale: Math.min(2.2, Math.max(0.45, bracketCanvas.scale + (e.deltaY > 0 ? -step : step))) });
             }}
             onMouseDown={(e) => {
               e.preventDefault();
