@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/Layout";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -29,7 +29,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AnimatePresence>{loading && <LoadingScreen />}</AnimatePresence>
-        <BrowserRouter>
+        <HashRouter>
           <Layout>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -43,7 +43,7 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
-        </BrowserRouter>
+        </HashRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
