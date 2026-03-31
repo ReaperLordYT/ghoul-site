@@ -10,12 +10,21 @@ const News = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", content: "", details: "", avatar: "" });
   const fileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
   const handleAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setForm((prev) => ({ ...prev, avatar: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditAvatar = (id: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updateNews(id, { avatar: reader.result as string });
     reader.readAsDataURL(file);
   };
 
@@ -84,6 +93,22 @@ const News = () => {
                   <p className="text-xs text-muted-foreground/50 font-display tracking-widest mb-1">{item.date}</p>
                   {editingId === item.id ? (
                     <>
+                      <div className="flex items-center gap-3 mb-2">
+                        <button
+                          onClick={() => editFileRef.current?.click()}
+                          className="w-12 h-12 border border-border bg-background flex items-center justify-center flex-shrink-0 hover:border-primary/50 transition-colors"
+                        >
+                          {item.avatar ? (
+                            <img src={item.avatar} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImagePlus size={18} className="text-muted-foreground" />
+                          )}
+                        </button>
+                        <input ref={editFileRef} type="file" accept="image/*" className="hidden" onChange={handleEditAvatar(item.id)} />
+                        <button className="text-xs border border-destructive text-destructive px-2 py-1" onClick={() => updateNews(item.id, { avatar: undefined })}>
+                          Удалить фото
+                        </button>
+                      </div>
                       <input className="w-full bg-background border border-border px-2 py-2 text-sm text-foreground mb-2" value={item.title} onChange={(e) => updateNews(item.id, { title: e.target.value })} />
                       <textarea className="w-full bg-background border border-border px-2 py-2 text-sm text-foreground h-24 resize-none mb-2" value={item.content} onChange={(e) => updateNews(item.id, { content: e.target.value })} />
                       <textarea className="w-full bg-background border border-border px-2 py-2 text-sm text-foreground h-36 resize-none mb-2" value={item.details || ""} onChange={(e) => updateNews(item.id, { details: e.target.value })} />

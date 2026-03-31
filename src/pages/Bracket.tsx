@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Check, ExternalLink, Link as LinkIcon, Link2, Pencil, Plus, Radio, RefreshCw, Trash2, Tv, Type, X } from "lucide-react";
+import { Check, Crown, ExternalLink, Link as LinkIcon, Link2, Pencil, Plus, Radio, RefreshCw, Trash2, Trophy, Tv, Type, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const statusLabel = (s?: string) => {
@@ -16,7 +16,7 @@ const Bracket = () => {
   const { bracket, schedule, players, isAdmin, editMode, addMatch, addBracketMatch, removeBracketMatch, updateBracketMatch, bracketCanvas, bracketRoundTitles, setBracketRoundTitle, updateBracketCanvas, upsertCanvasNode, removeCanvasNode, upsertCanvasEdge, removeCanvasEdge } = store;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const [form, setForm] = useState({ player1: "", player2: "", status: "planned" as "planned" | "live" | "finished" | "cancelled", player1Score: 0, player2Score: 0 });
+  const [form, setForm] = useState({ player1: "", player2: "", format: "Bo3" as "Bo3" | "Bo5", status: "planned" as "planned" | "live" | "finished" | "cancelled", player1Score: 0, player2Score: 0 });
   const [edgeModeFrom, setEdgeModeFrom] = useState<string | null>(null);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   const resizeRef = useRef<{ id: string; startX: number; startY: number; startW: number; startH: number } | null>(null);
@@ -33,6 +33,7 @@ const Bracket = () => {
   const [nodeEdit, setNodeEdit] = useState({
     player1: "TBD",
     player2: "TBD",
+    format: "Bo3" as "Bo3" | "Bo5",
     status: "planned" as "planned" | "live" | "finished" | "cancelled",
     round: 1,
     date: "",
@@ -42,11 +43,20 @@ const Bracket = () => {
     score2: 0,
   });
 
+  const winsRequired = (format?: "Bo3" | "Bo5") => (format === "Bo5" ? 3 : 2);
+
+  const playerByName = (name?: string) => players.find((p) => p.name === name);
+  const avatarByName = (name?: string) => playerByName(name)?.avatar;
+
+  const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+
   const startEdit = (m: (typeof bracket)[number]) => {
     setEditingId(m.id);
     setForm({
       player1: m.player1 || "",
       player2: m.player2 || "",
+      format: m.format || "Bo3",
       status: m.status || "planned",
       player1Score: m.player1Score ?? 0,
       player2Score: m.player2Score ?? 0,
@@ -58,6 +68,7 @@ const Bracket = () => {
     const patch = {
       player1: form.player1 || "TBD",
       player2: form.player2 || "TBD",
+      format: form.format,
       status: form.status,
       player1Score: form.player1Score,
       player2Score: form.player2Score,
@@ -68,6 +79,7 @@ const Bracket = () => {
     store.updateMatch(`s-${editingId}`, {
       player1: patch.player1,
       player2: patch.player2,
+      format: patch.format,
       status: patch.status,
       player1Score: patch.player1Score,
       player2Score: patch.player2Score,
@@ -107,11 +119,12 @@ const Bracket = () => {
     if (!editingNodeId) return;
     const node = bracketCanvas.nodes.find((n) => n.id === editingNodeId);
     if (!node) return;
-    upsertCanvasNode({ ...node, player1: nodeEdit.player1, player2: nodeEdit.player2, status: nodeEdit.status, round: nodeEdit.round });
+    upsertCanvasNode({ ...node, player1: nodeEdit.player1, player2: nodeEdit.player2, status: nodeEdit.status, round: nodeEdit.round, format: nodeEdit.format });
     ensureScheduleForBracket(editingNodeId, nodeEdit.round, nodeEdit.player1, nodeEdit.player2);
     store.updateMatch(`s-${editingNodeId}`, {
       player1: nodeEdit.player1,
       player2: nodeEdit.player2,
+      format: nodeEdit.format,
       status: nodeEdit.status,
       date: nodeEdit.date,
       time: nodeEdit.time,
@@ -150,6 +163,18 @@ const Bracket = () => {
 
   const NODE_W = 272;
   const NODE_H = 96;
+
+  const canvasHostRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = canvasHostRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel as any);
+  }, []);
 
   const autoLayout = () => {
     const matches = bracketCanvas.nodes.filter((n) => n.type === "match");
@@ -223,6 +248,10 @@ const Bracket = () => {
                             <option value="">Игрок 2</option>
                             {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                           </select>
+                          <select className="w-full bg-background border border-border px-2 py-1 text-xs" value={form.format} onChange={(e) => setForm((s) => ({ ...s, format: e.target.value as any }))}>
+                            <option value="Bo3">Bo3</option>
+                            <option value="Bo5">Bo5</option>
+                          </select>
                           <div className="grid grid-cols-2 gap-2">
                             <input type="number" min={0} className="bg-background border border-border px-2 py-1 text-xs" value={form.player1Score} onChange={(e) => setForm((s) => ({ ...s, player1Score: Number(e.target.value) || 0 }))} />
                             <input type="number" min={0} className="bg-background border border-border px-2 py-1 text-xs" value={form.player2Score} onChange={(e) => setForm((s) => ({ ...s, player2Score: Number(e.target.value) || 0 }))} />
@@ -242,7 +271,7 @@ const Bracket = () => {
                         <>
                           <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/30 bg-muted/20">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Bo3</span>
+                              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.format || "Bo3"}</span>
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                                 m.status === "live"
                                   ? "bg-lime-500/20 text-lime-400"
@@ -257,14 +286,55 @@ const Bracket = () => {
                             </div>
                             <span className="text-[10px] text-muted-foreground">Раунд {m.round}</span>
                           </div>
-                          <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/30 ${m.winner === m.player1 ? "text-primary bg-primary/5" : "text-foreground"}`}>
-                            <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player1Score: (m.player1Score ?? 0) + 1, score: `${(m.player1Score ?? 0) + 1}:${m.player2Score ?? 0}` }); }}>{m.player1 || "TBD"}</button>
-                            <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player1Score ?? 0}</span>
-                          </div>
-                          <div className={`px-4 py-2 text-sm flex justify-between ${m.winner === m.player2 ? "text-primary bg-primary/5" : "text-foreground"}`}>
-                            <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}>{m.player2 || "TBD"}</button>
-                            <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player2Score ?? 0}</span>
-                          </div>
+                          {(() => {
+                            const req = winsRequired(m.format);
+                            const a = m.player1Score ?? 0;
+                            const b = m.player2Score ?? 0;
+                            const p1Win = a >= req && a > b;
+                            const p2Win = b >= req && b > a;
+                            const p1Lose = p2Win;
+                            const p2Lose = p1Win;
+                            const ava1 = avatarByName(m.player1);
+                            const ava2 = avatarByName(m.player2);
+                            const highlight1 = hoveredPlayer && m.player1 === hoveredPlayer;
+                            const highlight2 = hoveredPlayer && m.player2 === hoveredPlayer;
+                            return (
+                              <>
+                                <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/30 ${
+                                  p1Win ? "text-green-400 bg-green-500/10" : p1Lose ? "text-rose-400 bg-rose-500/10" : highlight1 ? "bg-primary/10" : "text-foreground"
+                                }`}>
+                                  <button
+                                    className="inline-flex items-center gap-2 min-w-0"
+                                    disabled={!(isAdmin && editMode)}
+                                    onMouseEnter={() => setHoveredPlayer(m.player1 || null)}
+                                    onMouseLeave={() => setHoveredPlayer(null)}
+                                    onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player1Score: (m.player1Score ?? 0) + 1, score: `${(m.player1Score ?? 0) + 1}:${m.player2Score ?? 0}` }); }}
+                                  >
+                                    {ava1 && <img src={ava1} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                                    <span className="truncate">{m.player1 || "TBD"}</span>
+                                    {p1Win && (m.round >= Math.max(...rounds) ? <Trophy size={14} className="text-yellow-300" /> : <Crown size={14} className="text-yellow-300" />)}
+                                  </button>
+                                  <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{a}</span>
+                                </div>
+                                <div className={`px-4 py-2 text-sm flex justify-between ${
+                                  p2Win ? "text-green-400 bg-green-500/10" : p2Lose ? "text-rose-400 bg-rose-500/10" : highlight2 ? "bg-primary/10" : "text-foreground"
+                                }`}>
+                                  <button
+                                    className="inline-flex items-center gap-2 min-w-0"
+                                    disabled={!(isAdmin && editMode)}
+                                    onMouseEnter={() => setHoveredPlayer(m.player2 || null)}
+                                    onMouseLeave={() => setHoveredPlayer(null)}
+                                    onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}
+                                  >
+                                    {ava2 && <img src={ava2} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                                    <span className="truncate">{m.player2 || "TBD"}</span>
+                                    {p2Win && (m.round >= Math.max(...rounds) ? <Trophy size={14} className="text-yellow-300" /> : <Crown size={14} className="text-yellow-300" />)}
+                                  </button>
+                                  <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{b}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
                           <div className="px-4 pb-2 text-[10px] text-muted-foreground/80">Клик по матчу: подробности</div>
                           {isAdmin && editMode && (
                             <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -297,9 +367,107 @@ const Bracket = () => {
         <div className="mt-14">
           <h2 className="font-display text-xl tracking-widest mb-3">Расписание</h2>
           <div className="space-y-2">
-            {schedule.map((m) => <div key={m.id} className="border border-border bg-card p-3 text-sm">{m.player1} vs {m.player2} · {m.round} · {statusLabel(m.status)}</div>)}
+            {schedule.map((m) => {
+              const p1 = playerByName(m.player1);
+              const p2 = playerByName(m.player2);
+              const req = winsRequired(m.format);
+              const a = m.player1Score ?? 0;
+              const b = m.player2Score ?? 0;
+              const p1Win = a >= req && a > b;
+              const p2Win = b >= req && b > a;
+              return (
+                <button
+                  key={m.id}
+                  className="w-full text-left border border-border bg-card/90 rounded-xl p-3 text-sm hover:border-primary/40 transition-colors"
+                  onClick={() => setSelectedScheduleId(m.id)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] text-muted-foreground/70 font-display tracking-widest mb-1">{m.round || "—"} · {m.format || "Bo3"}</p>
+                      <p className="text-sm font-heading truncate">
+                        <span className={`inline-flex items-center gap-2 ${p1Win ? "text-green-400" : p2Win ? "text-rose-400" : "text-foreground"}`}>
+                          {p1?.avatar && <img src={p1.avatar} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                          {m.player1}
+                        </span>
+                        <span className="text-muted-foreground mx-2">vs</span>
+                        <span className={`inline-flex items-center gap-2 ${p2Win ? "text-green-400" : p1Win ? "text-rose-400" : "text-foreground"}`}>
+                          {p2?.avatar && <img src={p2.avatar} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                          {m.player2}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">{m.date || "—"} {m.time || ""}</p>
+                      <p className="text-sm font-display text-foreground">{a}:{b}</p>
+                      <p className={`text-[11px] ${
+                        m.status === "live" ? "text-lime-400" : m.status === "finished" ? "text-violet-400" : m.status === "cancelled" ? "text-rose-500" : "text-sky-400"
+                      }`}>{statusLabel(m.status)}</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        <Dialog open={Boolean(selectedScheduleId)} onOpenChange={(open) => !open && setSelectedScheduleId(null)}>
+          <DialogContent className="max-w-2xl border-border bg-card">
+            {selectedScheduleId && (() => {
+              const m = schedule.find((s) => s.id === selectedScheduleId);
+              if (!m) return null;
+              const p1 = playerByName(m.player1);
+              const p2 = playerByName(m.player2);
+              const req = winsRequired(m.format);
+              const a = m.player1Score ?? 0;
+              const b = m.player2Score ?? 0;
+              const p1Win = a >= req && a > b;
+              const p2Win = b >= req && b > a;
+              return (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="font-display tracking-widest text-primary">
+                      {m.player1} vs {m.player2}
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground flex-wrap">
+                    <span>📅 {m.date || "—"}</span>
+                    <span>⏰ {m.time || "—"}</span>
+                    <span className="text-primary font-heading">{m.format || "Bo3"}</span>
+                    <span className={`font-heading ${
+                      m.status === "live" ? "text-lime-400" : m.status === "finished" ? "text-violet-400" : m.status === "cancelled" ? "text-rose-500" : "text-sky-400"
+                    }`}>{statusLabel(m.status)}</span>
+                  </div>
+
+                  <div className="text-center">
+                    <span className="font-display text-3xl font-bold text-foreground">{a} - {b}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`border border-border/60 rounded-xl p-4 text-center ${p1Win ? "bg-green-500/10" : p2Win ? "bg-rose-500/10" : ""}`}>
+                      {p1?.avatar && <img src={p1.avatar} alt="" className="w-16 h-16 mx-auto rounded-xl object-cover border border-border mb-2" />}
+                      {p1 ? <Link to={`/players/${p1.id}`} className="text-primary hover:underline font-heading">{p1.name}</Link> : <p>{m.player1}</p>}
+                      <div className="text-xs text-muted-foreground mt-1">{p1Win ? "Победа" : p2Win ? "Поражение" : "—"}</div>
+                    </div>
+                    <div className={`border border-border/60 rounded-xl p-4 text-center ${p2Win ? "bg-green-500/10" : p1Win ? "bg-rose-500/10" : ""}`}>
+                      {p2?.avatar && <img src={p2.avatar} alt="" className="w-16 h-16 mx-auto rounded-xl object-cover border border-border mb-2" />}
+                      {p2 ? <Link to={`/players/${p2.id}`} className="text-primary hover:underline font-heading">{p2.name}</Link> : <p>{m.player2}</p>}
+                      <div className="text-xs text-muted-foreground mt-1">{p2Win ? "Победа" : p1Win ? "Поражение" : "—"}</div>
+                    </div>
+                  </div>
+
+                  {m.streamUrl ? (
+                    <a href={m.streamUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 border border-primary/50 text-primary hover:bg-primary/10 rounded-lg">
+                      <Tv size={16} /> Смотреть трансляцию <ExternalLink size={14} />
+                    </a>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Трансляция: не указана</p>
+                  )}
+                </>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
 
         <div className="mt-16">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -358,12 +526,14 @@ const Bracket = () => {
 
           <div className="glass-card rounded-2xl overflow-hidden border border-border/30" style={{ height: 600, position: "relative" }}>
             <div
+              ref={canvasHostRef}
               style={{
                 position: "absolute",
                 inset: 0,
                 overflow: "hidden",
                 cursor: panning ? "grabbing" : connectMode ? "crosshair" : "default",
-                background: "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.015) 0%, transparent 70%)",
+                background:
+                  "linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.78) 100%), radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 0%, transparent 70%)",
               }}
               onContextMenu={(e) => e.preventDefault()}
               onMouseDown={(e) => {
@@ -461,6 +631,17 @@ const Bracket = () => {
                   const score2 = sched?.player2Score ?? 0;
                   const status = (sched?.status ?? node.status ?? "planned") as "planned" | "live" | "finished" | "cancelled";
                   const round = node.round ?? 1;
+                  const format = (node.format ?? sched?.format ?? "Bo3") as "Bo3" | "Bo5";
+                  const req = winsRequired(format);
+                  const p1Win = score1 >= req && score1 > score2;
+                  const p2Win = score2 >= req && score2 > score1;
+                  const p1Lose = p2Win;
+                  const p2Lose = p1Win;
+                  const ava1 = avatarByName(node.player1);
+                  const ava2 = avatarByName(node.player2);
+                  const highlight1 = hoveredPlayer && node.player1 === hoveredPlayer;
+                  const highlight2 = hoveredPlayer && node.player2 === hoveredPlayer;
+                  const globalHighlight = hoveredPlayer && (node.player1 === hoveredPlayer || node.player2 === hoveredPlayer);
 
                   return (
                     <div
@@ -497,6 +678,7 @@ const Bracket = () => {
                         setNodeEdit({
                           player1: node.player1 || "TBD",
                           player2: node.player2 || "TBD",
+                          format: (node.format ?? s?.format ?? "Bo3") as any,
                           status: (s?.status ?? node.status ?? "planned") as any,
                           round,
                           date: s?.date ?? "",
@@ -517,7 +699,7 @@ const Bracket = () => {
                     >
                       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/20 bg-muted/20">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] font-heading text-muted-foreground tracking-wider">Bo3</span>
+                          <span className="text-[10px] font-heading text-muted-foreground tracking-wider">{format}</span>
                           {status === "live" && <span className="text-[9px] text-rose-400 animate-pulse font-bold">● LIVE</span>}
                           {sched?.streamUrl && (
                             <a data-no-drag="1" href={sched.streamUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
@@ -530,7 +712,9 @@ const Bracket = () => {
 
                       <div
                         data-no-drag="1"
-                        className={`flex items-center justify-between px-3 py-2 transition-colors ${isAdmin && editMode && !connectMode ? "hover:bg-muted/20 cursor-pointer" : ""}`}
+                        className={`flex items-center justify-between px-3 py-2 transition-colors ${
+                          p1Win ? "bg-green-500/10 text-green-400" : p1Lose ? "bg-rose-500/10 text-rose-400" : highlight1 ? "bg-primary/10" : ""
+                        } ${isAdmin && editMode && !connectMode ? "hover:bg-muted/20 cursor-pointer" : ""} ${globalHighlight ? "ring-1 ring-primary/25" : ""}`}
                         onClick={() => {
                           if (!(isAdmin && editMode) || connectMode) return;
                           ensureScheduleForBracket(node.id, round, node.player1 || "TBD", node.player2 || "TBD");
@@ -541,13 +725,23 @@ const Bracket = () => {
                           });
                         }}
                       >
-                        <span className="text-sm font-heading truncate">{node.player1 || "TBD"}</span>
+                        <span
+                          className="text-sm font-heading truncate inline-flex items-center gap-2"
+                          onMouseEnter={() => setHoveredPlayer(node.player1 || null)}
+                          onMouseLeave={() => setHoveredPlayer(null)}
+                        >
+                          {ava1 && <img src={ava1} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                          {node.player1 || "TBD"}
+                          {p1Win && (round >= Math.max(...rounds) ? <Trophy size={13} className="text-yellow-300" /> : <Crown size={13} className="text-yellow-300" />)}
+                        </span>
                         <span className="text-sm font-heading font-bold tabular-nums">{score1 ?? 0}</span>
                       </div>
                       <div className="border-t border-border/20" />
                       <div
                         data-no-drag="1"
-                        className={`flex items-center justify-between px-3 py-2 transition-colors ${isAdmin && editMode && !connectMode ? "hover:bg-muted/20 cursor-pointer" : ""}`}
+                        className={`flex items-center justify-between px-3 py-2 transition-colors ${
+                          p2Win ? "bg-green-500/10 text-green-400" : p2Lose ? "bg-rose-500/10 text-rose-400" : highlight2 ? "bg-primary/10" : ""
+                        } ${isAdmin && editMode && !connectMode ? "hover:bg-muted/20 cursor-pointer" : ""} ${globalHighlight ? "ring-1 ring-primary/25" : ""}`}
                         onClick={() => {
                           if (!(isAdmin && editMode) || connectMode) return;
                           ensureScheduleForBracket(node.id, round, node.player1 || "TBD", node.player2 || "TBD");
@@ -558,7 +752,15 @@ const Bracket = () => {
                           });
                         }}
                       >
-                        <span className="text-sm font-heading truncate">{node.player2 || "TBD"}</span>
+                        <span
+                          className="text-sm font-heading truncate inline-flex items-center gap-2"
+                          onMouseEnter={() => setHoveredPlayer(node.player2 || null)}
+                          onMouseLeave={() => setHoveredPlayer(null)}
+                        >
+                          {ava2 && <img src={ava2} alt="" className="w-5 h-5 rounded object-cover border border-border/60" />}
+                          {node.player2 || "TBD"}
+                          {p2Win && (round >= Math.max(...rounds) ? <Trophy size={13} className="text-yellow-300" /> : <Crown size={13} className="text-yellow-300" />)}
+                        </span>
                         <span className="text-sm font-heading font-bold tabular-nums">{score2 ?? 0}</span>
                       </div>
 
@@ -603,6 +805,10 @@ const Bracket = () => {
                   <option value="TBD">TBD</option>
                   {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                 </select>
+                <select className="bg-background border border-border px-3 py-2 text-sm" value={nodeEdit.format} onChange={(e) => setNodeEdit((s) => ({ ...s, format: e.target.value as any }))}>
+                  <option value="Bo3">Bo3</option>
+                  <option value="Bo5">Bo5</option>
+                </select>
                 <select className="bg-background border border-border px-3 py-2 text-sm" value={nodeEdit.status} onChange={(e) => setNodeEdit((s) => ({ ...s, status: e.target.value as any }))}>
                   <option value="planned">Запланировано</option>
                   <option value="live">LIVE</option>
@@ -635,19 +841,24 @@ const Bracket = () => {
             const p1 = players.find((p) => p.name === m.player1);
             const p2 = players.find((p) => p.name === m.player2);
             const linkedSchedule = findScheduleMatch(m.player1, m.player2);
+            const req = winsRequired((m.format ?? linkedSchedule?.format ?? "Bo3") as any);
+            const a = m.player1Score ?? 0;
+            const b = m.player2Score ?? 0;
+            const p1Win = a >= req && a > b;
+            const p2Win = b >= req && b > a;
             return (
               <>
                 <DialogHeader>
                   <DialogTitle className="font-display tracking-widest text-primary">
-                    {m.player1 || "TBD"} vs {m.player2 || "TBD"}
+                    {m.player1 || "TBD"} vs {m.player2 || "TBD"} <span className="text-muted-foreground text-xs ml-2">{m.format || linkedSchedule?.format || "Bo3"}</span>
                   </DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center border border-border/60 rounded-md p-3">
+                  <div className={`text-center border border-border/60 rounded-md p-3 ${p1Win ? "bg-green-500/10" : p2Win ? "bg-rose-500/10" : ""}`}>
                     {p1?.avatar && <img src={p1.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2 rounded-sm" />}
                     {p1 ? <Link to={`/players/${p1.id}`} className="text-primary hover:underline">{p1.name}</Link> : <p>{m.player1 || "TBD"}</p>}
                   </div>
-                  <div className="text-center border border-border/60 rounded-md p-3">
+                  <div className={`text-center border border-border/60 rounded-md p-3 ${p2Win ? "bg-green-500/10" : p1Win ? "bg-rose-500/10" : ""}`}>
                     {p2?.avatar && <img src={p2.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2 rounded-sm" />}
                     {p2 ? <Link to={`/players/${p2.id}`} className="text-primary hover:underline">{p2.name}</Link> : <p>{m.player2 || "TBD"}</p>}
                   </div>
@@ -656,6 +867,14 @@ const Bracket = () => {
                   <p className="text-muted-foreground">Счёт: <span className="text-foreground">{m.player1Score ?? 0}:{m.player2Score ?? 0}</span></p>
                   <p className="text-muted-foreground">Статус: <span className="text-foreground">{statusLabel(m.status)}</span></p>
                 </div>
+                {(p1Win || p2Win) && (
+                  <p className="text-sm text-muted-foreground">
+                    Победитель:{" "}
+                    <span className="text-green-400 font-heading">
+                      {p1Win ? (m.player1 || "TBD") : (m.player2 || "TBD")}
+                    </span>
+                  </p>
+                )}
                 {linkedSchedule?.streamUrl ? (
                   <a href={linkedSchedule.streamUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-sm">
                     <ExternalLink size={14} /> Открыть трансляцию

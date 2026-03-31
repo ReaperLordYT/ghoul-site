@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useStore } from "@/store/useStore";
 import { Skull, Crown, XCircle, Plus, Trash2, Link2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -68,6 +68,22 @@ const Players = () => {
         { wins: 0, losses: 0 },
       )
     : { wins: 0, losses: 0 };
+
+  const statsByPlayer = useMemo(() => {
+    const map = new Map<string, { wins: number; losses: number }>();
+    players.forEach((p) => map.set(p.name, { wins: 0, losses: 0 }));
+    schedule.forEach((m) => {
+      const a = m.player1Score ?? Number((m.score || "0:0").split(":")[0] || 0);
+      const b = m.player2Score ?? Number((m.score || "0:0").split(":")[1] || 0);
+      if (!m.player1 || !m.player2) return;
+      const p1 = map.get(m.player1);
+      const p2 = map.get(m.player2);
+      if (!p1 || !p2) return;
+      if (a > b) { p1.wins += 1; p2.losses += 1; }
+      if (b > a) { p2.wins += 1; p1.losses += 1; }
+    });
+    return map;
+  }, [players, schedule]);
   const filteredPlayers = players.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
@@ -155,7 +171,7 @@ const Players = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPlayers.map((p, i) => (
             <motion.div
               key={p.id}
@@ -163,38 +179,54 @@ const Players = () => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               viewport={{ once: true }}
-              className={`border bg-card p-5 relative overflow-hidden group transition-colors hover:border-primary/50 cursor-pointer ${
-                p.status === 'winner' ? 'border-primary box-glow' : ['disqualified', 'rejected', 'left'].includes(p.status) ? 'border-border/30 opacity-60' : 'border-border'
-              }`}
+              className="relative"
               onClick={() => setSelectedPlayerId(p.id)}
             >
-              {p.avatar && (
-                <div className="w-full aspect-square mb-3 border border-border overflow-hidden">
-                  <img src={p.avatar} alt={p.name} className="w-full h-full object-cover" />
+              <div className={`glass-card rounded-xl p-6 card-glow group cursor-pointer ${['disqualified', 'rejected', 'left'].includes(p.status) ? 'opacity-60' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                  {p.avatar ? (
+                    <img src={p.avatar} alt={p.name} className="w-16 h-16 rounded-xl object-cover border border-border/60" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center font-display text-2xl text-muted-foreground border border-border/40">
+                      {p.name?.[0] || "?"}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="font-heading font-bold text-lg text-foreground group-hover:text-primary transition-colors truncate">
+                      {p.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">MMR: <span className="text-foreground font-heading font-semibold">{p.mmr || "—"}</span></p>
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center gap-2 mb-3">
-                {statusIcon[p.status]}
-                <span className="font-heading text-foreground">{p.name}</span>
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                {p.mmr && <p>MMR: <span className="text-foreground">{p.mmr}</span></p>}
-                <p>Статус: <span className={statusClass[p.status] || 'text-foreground'}>{
-                statusLabel[p.status] || p.status
-                }</span></p>
-                {p.statusReason && <p>Причина: <span className="text-foreground">{p.statusReason}</span></p>}
-              </div>
-              <div className="mt-3 flex gap-2">
-                {p.dotabuffUrl && (
-                  <a href={p.dotabuffUrl} target="_blank" rel="noreferrer" className="text-xs border border-border px-2 py-1 hover:border-primary/50">
-                    Dotabuff
-                  </a>
+
+                <div className="flex items-center justify-between text-sm gap-3">
+                  <span className={`px-2 py-0.5 rounded text-xs font-heading ${p.status === 'active' ? 'bg-green-500/20 text-green-400' : p.status === 'review' ? 'bg-sky-500/20 text-sky-300' : p.status === 'winner' ? 'bg-yellow-500/20 text-yellow-300' : p.status === 'rejected' ? 'bg-fuchsia-500/20 text-fuchsia-300' : p.status === 'disqualified' ? 'bg-rose-500/20 text-rose-400' : 'bg-orange-500/20 text-orange-300'}`}>
+                    {statusLabel[p.status] || p.status}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    W <span className="text-green-400 font-heading font-semibold">{statsByPlayer.get(p.name)?.wins ?? 0}</span> /
+                    L <span className="text-rose-400 font-heading font-semibold">{statsByPlayer.get(p.name)?.losses ?? 0}</span>
+                  </span>
+                </div>
+
+                {p.statusReason && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Причина: <span className="text-foreground">{p.statusReason}</span>
+                  </p>
                 )}
-                {p.steamUrl && (
-                  <a href={p.steamUrl} target="_blank" rel="noreferrer" className="text-xs border border-border px-2 py-1 hover:border-primary/50">
-                    Steam
-                  </a>
-                )}
+
+                <div className="mt-4 flex gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  {p.dotabuffUrl && (
+                    <a href={p.dotabuffUrl} target="_blank" rel="noreferrer" className="text-xs border border-border/60 px-2 py-1 rounded-lg hover:border-primary/50">
+                      Dotabuff
+                    </a>
+                  )}
+                  {p.steamUrl && (
+                    <a href={p.steamUrl} target="_blank" rel="noreferrer" className="text-xs border border-border/60 px-2 py-1 rounded-lg hover:border-primary/50">
+                      Steam
+                    </a>
+                  )}
+                </div>
               </div>
               {isAdmin && editMode && (
                 <div className="mt-3 pt-3 border-t border-border/60 space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -253,9 +285,7 @@ const Players = () => {
                   ))}
                 </div>
               )}
-              {p.status === 'winner' && (
-                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-primary/20 to-transparent" />
-              )}
+              {p.status === 'winner' && <div className="absolute top-2 right-2">{statusIcon.winner}</div>}
             </motion.div>
           ))}
         </div>
@@ -276,9 +306,7 @@ const Players = () => {
                 <DialogTitle className="font-display tracking-widest text-primary text-glow">
                   {selectedPlayer.name}
                 </DialogTitle>
-                <DialogDescription>
-                  Подробная карточка игрока: предстоящие, LIVE, завершенные и отмененные матчи.
-                </DialogDescription>
+                <DialogDescription>Профиль игрока.</DialogDescription>
               </DialogHeader>
 
               {selectedPlayer.avatar && (
@@ -289,12 +317,23 @@ const Players = () => {
                 />
               )}
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <p className="text-muted-foreground">MMR: <span className="text-foreground">{selectedPlayer.mmr || '—'}</span></p>
-                <p className="text-muted-foreground">Побед: <span className="text-foreground">{matchStats.wins}</span></p>
-                <p className="text-muted-foreground">Поражений: <span className="text-foreground">{matchStats.losses}</span></p>
-                <p className="text-muted-foreground">Dotabuff: <span className="text-foreground">{selectedPlayer.dotabuffUrl ? "добавлен" : "—"}</span></p>
-                <p className="text-muted-foreground">Steam: <span className="text-foreground">{selectedPlayer.steamUrl ? "добавлен" : "—"}</span></p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="border border-border/60 rounded-xl p-3 text-center bg-background/40">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">MMR</p>
+                  <p className="font-display text-xl text-foreground">{selectedPlayer.mmr || "—"}</p>
+                </div>
+                <div className="border border-border/60 rounded-xl p-3 text-center bg-green-500/10">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Победы</p>
+                  <p className="font-display text-xl text-green-400">{matchStats.wins}</p>
+                </div>
+                <div className="border border-border/60 rounded-xl p-3 text-center bg-rose-500/10">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Поражения</p>
+                  <p className="font-display text-xl text-rose-400">{matchStats.losses}</p>
+                </div>
+                <div className="border border-border/60 rounded-xl p-3 text-center bg-background/40">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Статус</p>
+                  <p className={`font-heading text-sm ${statusClass[selectedPlayer.status] || "text-foreground"}`}>{statusLabel[selectedPlayer.status] || selectedPlayer.status}</p>
+                </div>
               </div>
               <div className="flex gap-2">
                 {selectedPlayer.dotabuffUrl && (

@@ -26,6 +26,7 @@ export interface MatchItem {
   id: string;
   player1: string;
   player2: string;
+  format?: "Bo3" | "Bo5";
   time: string;
   date: string;
   status: "planned" | "live" | "finished" | "cancelled";
@@ -42,6 +43,7 @@ export interface BracketMatch {
   position: number;
   player1?: string;
   player2?: string;
+  format?: "Bo3" | "Bo5";
   winner?: string;
   score?: string;
   status?: "planned" | "live" | "finished" | "cancelled";
@@ -86,6 +88,7 @@ export interface CanvasNode {
   height: number;
   label: string;
   round?: number;
+  format?: "Bo3" | "Bo5";
   player1?: string;
   player2?: string;
   status?: "planned" | "live" | "finished" | "cancelled";
@@ -201,14 +204,14 @@ const defaultNews: NewsItem[] = [
 ];
 
 const defaultSchedule: MatchItem[] = [
-  { id: "1", player1: "Demon King", player2: "Soul Reaper", time: "18:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
-  { id: "2", player1: "Shadow Spawn", player2: "Requiem", time: "20:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
+  { id: "1", player1: "Demon King", player2: "Soul Reaper", format: "Bo3", time: "18:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
+  { id: "2", player1: "Shadow Spawn", player2: "Requiem", format: "Bo3", time: "20:00", date: "2026-04-01", status: "planned", round: "Полуфинал", player1Score: 0, player2Score: 0, score: "0:0", streamUrl: "" },
 ];
 
 const defaultBracket: BracketMatch[] = [
-  { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", winner: "Demon King", score: "2:1", status: "finished" },
-  { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", winner: "Requiem", score: "1:2", status: "finished" },
-  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem", status: "planned" },
+  { id: "b1", round: 1, position: 0, player1: "Demon King", player2: "Soul Reaper", format: "Bo3", winner: "Demon King", score: "2:1", status: "finished" },
+  { id: "b2", round: 1, position: 1, player1: "Shadow Spawn", player2: "Requiem", format: "Bo3", winner: "Requiem", score: "1:2", status: "finished" },
+  { id: "b3", round: 2, position: 0, player1: "Demon King", player2: "Requiem", format: "Bo3", status: "planned" },
 ];
 
 export const useStore = create<AppState>()(
@@ -249,8 +252,8 @@ export const useStore = create<AppState>()(
       },
       bracketCanvas: {
         nodes: [
-          { id: "n1", type: "match", x: 120, y: 120, width: 272, height: 96, label: "Матч 1", round: 1, player1: "Demon King", player2: "Soul Reaper", status: "live" },
-          { id: "n2", type: "match", x: 500, y: 220, width: 272, height: 96, label: "Матч 2", round: 2, player1: "TBD", player2: "TBD", status: "planned" },
+          { id: "n1", type: "match", x: 120, y: 120, width: 272, height: 96, label: "Матч 1", round: 1, format: "Bo3", player1: "Demon King", player2: "Soul Reaper", status: "live" },
+          { id: "n2", type: "match", x: 500, y: 220, width: 272, height: 96, label: "Матч 2", round: 2, format: "Bo3", player1: "TBD", player2: "TBD", status: "planned" },
         ],
         edges: [{ id: "e1", from: "n1", to: "n2", label: "winner", toSlot: 1 }],
         scale: 1,
