@@ -85,6 +85,7 @@ export interface CanvasNode {
   width: number;
   height: number;
   label: string;
+  round?: number;
   player1?: string;
   player2?: string;
   status?: "planned" | "live" | "finished" | "cancelled";
@@ -99,6 +100,7 @@ export interface CanvasEdge {
   from: string;
   to: string;
   label?: string;
+  toSlot?: 1 | 2;
 }
 
 export interface BracketCanvasState {
@@ -247,10 +249,10 @@ export const useStore = create<AppState>()(
       },
       bracketCanvas: {
         nodes: [
-          { id: "n1", type: "match", x: 120, y: 120, width: 240, height: 96, label: "Матч 1", player1: "Demon King", player2: "Soul Reaper", status: "live" },
-          { id: "n2", type: "match", x: 500, y: 220, width: 240, height: 96, label: "Матч 2", player1: "TBD", player2: "TBD", status: "planned" },
+          { id: "n1", type: "match", x: 120, y: 120, width: 272, height: 96, label: "Матч 1", round: 1, player1: "Demon King", player2: "Soul Reaper", status: "live" },
+          { id: "n2", type: "match", x: 500, y: 220, width: 272, height: 96, label: "Матч 2", round: 2, player1: "TBD", player2: "TBD", status: "planned" },
         ],
-        edges: [{ id: "e1", from: "n1", to: "n2", label: "winner" }],
+        edges: [{ id: "e1", from: "n1", to: "n2", label: "winner", toSlot: 1 }],
         scale: 1,
         offsetX: 0,
         offsetY: 0,
