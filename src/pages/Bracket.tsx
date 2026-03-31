@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "@/store/useStore";
-import { Link2, Pencil, Plus, Radio, Trash2, ZoomIn, ZoomOut, Type } from "lucide-react";
+import { ExternalLink, Link2, Pencil, Plus, Radio, Trash2, ZoomIn, ZoomOut, Type } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const statusLabel = (s?: string) => {
   if (s === "live") return "LIVE";
@@ -48,6 +49,13 @@ const Bracket = () => {
     setEditingId(null);
   };
 
+  const findScheduleMatch = (p1?: string, p2?: string) =>
+    schedule.find(
+      (s) =>
+        (s.player1 === p1 && s.player2 === p2) ||
+        (s.player1 === p2 && s.player2 === p1),
+    );
+
   return (
     <div className="min-h-screen py-20 px-4">
       <div className="max-w-6xl mx-auto">
@@ -67,7 +75,7 @@ const Bracket = () => {
                   {matches.map((m) => (
                     <div
                       key={m.id}
-                      className="border border-border bg-card relative group cursor-pointer"
+                      className="border border-border/70 bg-card/80 backdrop-blur-sm rounded-md relative group cursor-pointer shadow-sm hover:border-primary/50 transition-colors"
                       onClick={() => {
                         if (isAdmin && editMode) return;
                         setSelectedMatchId(m.id);
@@ -102,11 +110,11 @@ const Bracket = () => {
                         <>
                           <div className={`px-4 py-2 text-sm flex justify-between border-b border-border/50 ${m.winner === m.player1 ? "text-primary" : "text-foreground"}`}>
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player1Score: (m.player1Score ?? 0) + 1, score: `${(m.player1Score ?? 0) + 1}:${m.player2Score ?? 0}` }); }}>{m.player1 || "TBD"}</button>
-                            <span className="text-xs">{m.player1Score ?? 0}</span>
+                            <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player1Score ?? 0}</span>
                           </div>
                           <div className={`px-4 py-2 text-sm flex justify-between ${m.winner === m.player2 ? "text-primary" : "text-foreground"}`}>
                             <button disabled={!(isAdmin && editMode)} onClick={(e) => { e.stopPropagation(); updateBracketMatch(m.id, { player2Score: (m.player2Score ?? 0) + 1, score: `${m.player1Score ?? 0}:${(m.player2Score ?? 0) + 1}` }); }}>{m.player2 || "TBD"}</button>
-                            <span className="text-xs">{m.player2Score ?? 0}</span>
+                            <span className="text-xs bg-background/70 border border-border/50 px-1.5 py-0.5 rounded-sm">{m.player2Score ?? 0}</span>
                           </div>
                           <div className={`px-4 pb-2 text-[11px] ${m.status === "live" ? "text-lime-400 animate-flicker" : m.status === "cancelled" ? "text-rose-500" : m.status === "finished" ? "text-violet-400" : "text-sky-400"}`}>{statusLabel(m.status)}</div>
                           {isAdmin && editMode && (
@@ -203,7 +211,7 @@ const Bracket = () => {
                 <div
                   key={node.id}
                   data-node="1"
-                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-sm border border-cyan-500/70 bg-cyan-500/10" : "p-2 rounded-sm border border-primary/40 bg-background/75 ring-1 ring-primary/20"}`}
+                  className={`absolute shadow-sm text-xs ${node.type === "text" ? "p-1 rounded-md border border-cyan-400/70 bg-slate-900/75 ring-1 ring-cyan-400/20" : "p-2 rounded-md border border-border/70 bg-zinc-800/90 ring-1 ring-primary/15"}`}
                   style={{ left: node.x, top: node.y, width: node.width, height: node.height }}
                   onMouseDown={(e) => {
                     if (!(isAdmin && editMode)) return;
@@ -250,6 +258,17 @@ const Bracket = () => {
                           <option value="TBD">TBD</option>
                           {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
                         </select>
+                        <select
+                          className="w-full bg-transparent border-b border-border px-1 py-1 text-[11px]"
+                          value={node.status || "planned"}
+                          onChange={(e) => upsertCanvasNode({ ...node, status: e.target.value as typeof node.status })}
+                          disabled={!(isAdmin && editMode)}
+                        >
+                          <option value="planned">Запланировано</option>
+                          <option value="live">LIVE</option>
+                          <option value="finished">Завершён</option>
+                          <option value="cancelled">Отменён</option>
+                        </select>
                         <div
                           className={`px-1 py-1 mt-auto inline-flex items-center gap-1 ${node.status === "live" ? "text-lime-400" : node.status === "cancelled" ? "text-rose-500" : node.status === "finished" ? "text-violet-400" : "text-sky-400"}`}
                         >
@@ -286,21 +305,41 @@ const Bracket = () => {
       </div>
 
       <Dialog open={Boolean(selectedMatchId)} onOpenChange={(v) => !v && setSelectedMatchId(null)}>
-        <DialogContent>
+        <DialogContent className="border-border bg-card max-w-2xl">
           {selectedMatchId && (() => {
             const m = bracket.find((item) => item.id === selectedMatchId);
             if (!m) return null;
             const p1 = players.find((p) => p.name === m.player1);
             const p2 = players.find((p) => p.name === m.player2);
+            const linkedSchedule = findScheduleMatch(m.player1, m.player2);
             return (
               <>
-                <DialogHeader><DialogTitle>{m.player1 || "TBD"} vs {m.player2 || "TBD"}</DialogTitle></DialogHeader>
+                <DialogHeader>
+                  <DialogTitle className="font-display tracking-widest text-primary">
+                    {m.player1 || "TBD"} vs {m.player2 || "TBD"}
+                  </DialogTitle>
+                </DialogHeader>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center">{p1?.avatar && <img src={p1.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2" />}<p>{m.player1 || "TBD"}</p></div>
-                  <div className="text-center">{p2?.avatar && <img src={p2.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2" />}<p>{m.player2 || "TBD"}</p></div>
+                  <div className="text-center border border-border/60 rounded-md p-3">
+                    {p1?.avatar && <img src={p1.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2 rounded-sm" />}
+                    {p1 ? <Link to={`/players/${p1.id}`} className="text-primary hover:underline">{p1.name}</Link> : <p>{m.player1 || "TBD"}</p>}
+                  </div>
+                  <div className="text-center border border-border/60 rounded-md p-3">
+                    {p2?.avatar && <img src={p2.avatar} alt="" className="w-20 h-20 object-cover mx-auto border border-border mb-2 rounded-sm" />}
+                    {p2 ? <Link to={`/players/${p2.id}`} className="text-primary hover:underline">{p2.name}</Link> : <p>{m.player2 || "TBD"}</p>}
+                  </div>
                 </div>
-                <p className="text-sm">Счёт: {m.player1Score ?? 0}:{m.player2Score ?? 0}</p>
-                <p className="text-xs text-muted-foreground">Статус: {statusLabel(m.status)}</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p className="text-muted-foreground">Счёт: <span className="text-foreground">{m.player1Score ?? 0}:{m.player2Score ?? 0}</span></p>
+                  <p className="text-muted-foreground">Статус: <span className="text-foreground">{statusLabel(m.status)}</span></p>
+                </div>
+                {linkedSchedule?.streamUrl ? (
+                  <a href={linkedSchedule.streamUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline text-sm">
+                    <ExternalLink size={14} /> Открыть трансляцию
+                  </a>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Трансляция не указана</p>
+                )}
               </>
             );
           })()}

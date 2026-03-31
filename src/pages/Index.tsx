@@ -62,7 +62,7 @@ const Index = () => {
           <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
             {top3ByPlace.map((p, i) => {
             const foundPlayer = players.find((pl) => pl.name === p.name);
-            const clickable = tournamentCompleted && foundPlayer;
+            const clickable = tournamentCompleted && foundPlayer && !(isAdmin && editMode);
             const content = (
               <>
                 <div className="text-4xl font-display text-primary mb-2">
@@ -166,6 +166,14 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">{m.round} · {m.date} · {m.time}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-5 text-center">
+            <Link
+              to="/schedule"
+              className="inline-flex items-center px-5 py-2 border border-primary/60 text-primary hover:bg-primary/10 transition-colors"
+            >
+              Перейти к расписанию
+            </Link>
           </div>
         </div>
       </section>

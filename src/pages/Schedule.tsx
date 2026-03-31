@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
-import { Clock, Radio, CheckCircle, Ban } from 'lucide-react';
+import { Clock, Radio, CheckCircle, Ban, Pencil } from 'lucide-react';
 import { parseScore } from '@/lib/score';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
@@ -14,10 +14,18 @@ const statusConfig = {
   cancelled: { icon: <Ban size={14} />, label: 'Отменён', cls: 'text-rose-500' },
 };
 
+const statusOrder: Record<'planned' | 'live' | 'finished' | 'cancelled', number> = {
+  live: 0,
+  planned: 1,
+  finished: 2,
+  cancelled: 3,
+};
+
 const Schedule = () => {
-  const { schedule, players, isAdmin, editMode, addMatch, removeMatch } = useStore();
+  const { schedule, players, isAdmin, editMode, addMatch, removeMatch, updateMatch } = useStore();
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'dateAsc' | 'dateDesc' | 'status'>('dateAsc');
+  const [sortBy, setSortBy] = useState<'statusPriority' | 'dateAsc' | 'dateDesc'>('statusPriority');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     player1: '',
     player2: '',
@@ -31,6 +39,52 @@ const Schedule = () => {
   });
 
   const canAdd = isAdmin && editMode && form.player1.trim() && form.player2.trim();
+  const editingMatch = editingId ? schedule.find((m) => m.id === editingId) : undefined;
+  const [editForm, setEditForm] = useState({
+    player1: '',
+    player2: '',
+    time: '18:00',
+    date: '',
+    round: '',
+    streamUrl: '',
+    status: 'planned' as 'planned' | 'live' | 'finished' | 'cancelled',
+    player1Score: 0,
+    player2Score: 0,
+  });
+
+  const beginEdit = (id: string) => {
+    const target = schedule.find((m) => m.id === id);
+    if (!target) return;
+    setEditingId(id);
+    setEditForm({
+      player1: target.player1,
+      player2: target.player2,
+      time: target.time,
+      date: target.date,
+      round: target.round,
+      streamUrl: target.streamUrl || '',
+      status: target.status,
+      player1Score: target.player1Score ?? 0,
+      player2Score: target.player2Score ?? 0,
+    });
+  };
+
+  const saveEdit = () => {
+    if (!editingId) return;
+    updateMatch(editingId, {
+      player1: editForm.player1.trim(),
+      player2: editForm.player2.trim(),
+      time: editForm.time.trim(),
+      date: editForm.date.trim(),
+      round: editForm.round.trim(),
+      streamUrl: editForm.streamUrl.trim(),
+      status: editForm.status,
+      player1Score: editForm.player1Score,
+      player2Score: editForm.player2Score,
+      score: `${editForm.player1Score}:${editForm.player2Score}`,
+    });
+    setEditingId(null);
+  };
 
   return (
     <div className="min-h-screen py-20 px-4">
@@ -116,9 +170,9 @@ const Schedule = () => {
 
         <div className="mb-4 flex justify-end">
           <select className="border border-border bg-background px-3 py-2 text-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}>
+            <option value="statusPriority">Сортировка: LIVE → Запланированные → Завершённые → Отменённые</option>
             <option value="dateAsc">Сортировка: дата по возрастанию</option>
             <option value="dateDesc">Сортировка: дата по убыванию</option>
-            <option value="status">Сортировка: статус</option>
           </select>
         </div>
 
@@ -127,7 +181,7 @@ const Schedule = () => {
             .sort((a, b) => {
               if (sortBy === 'dateAsc') return `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
               if (sortBy === 'dateDesc') return `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`);
-              return a.status.localeCompare(b.status);
+              return statusOrder[a.status] - statusOrder[b.status];
             })
             .map((m, i) => {
             const sc = statusConfig[m.status];
@@ -162,15 +216,56 @@ const Schedule = () => {
                     {m.score && <span className="ml-2 text-foreground font-display">{m.score}</span>}
                   </div>
                   {isAdmin && editMode && (
-                    <button className="mt-2 text-destructive" onClick={() => removeMatch(m.id)}>
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="mt-2 flex justify-end gap-3">
+                      <button className="text-primary" onClick={(e) => { e.stopPropagation(); beginEdit(m.id); }}>
+                        <Pencil size={14} />
+                      </button>
+                      <button className="text-destructive" onClick={(e) => { e.stopPropagation(); removeMatch(m.id); }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </motion.div>
             );
           })}
         </div>
+
+        <Dialog open={Boolean(editingMatch)} onOpenChange={(open) => !open && setEditingId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Редактирование матча</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={editForm.player1} onChange={(e) => setEditForm((s) => ({ ...s, player1: e.target.value }))}>
+                <option value="">Игрок 1</option>
+                {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+              <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={editForm.player2} onChange={(e) => setEditForm((s) => ({ ...s, player2: e.target.value }))}>
+                <option value="">Игрок 2</option>
+                {players.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+              </select>
+              <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Время" value={editForm.time} onChange={(e) => setEditForm((s) => ({ ...s, time: e.target.value }))} />
+              <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Дата" value={editForm.date} onChange={(e) => setEditForm((s) => ({ ...s, date: e.target.value }))} />
+              <input className="bg-background border border-border px-3 py-2 text-sm text-foreground" placeholder="Раунд" value={editForm.round} onChange={(e) => setEditForm((s) => ({ ...s, round: e.target.value }))} />
+              <input className="bg-background border border-border px-3 py-2 text-sm text-foreground sm:col-span-2" placeholder="Трансляция (https://...)" value={editForm.streamUrl} onChange={(e) => setEditForm((s) => ({ ...s, streamUrl: e.target.value }))} />
+              <select className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={editForm.status} onChange={(e) => setEditForm((s) => ({ ...s, status: e.target.value as any }))}>
+                <option value="planned">Запланировано</option>
+                <option value="live">LIVE</option>
+                <option value="finished">Завершён</option>
+                <option value="cancelled">Отменён</option>
+              </select>
+              <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">
+                <input type="number" min={0} className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={editForm.player1Score} onChange={(e) => setEditForm((s) => ({ ...s, player1Score: Number(e.target.value) || 0 }))} />
+                <input type="number" min={0} className="bg-background border border-border px-3 py-2 text-sm text-foreground" value={editForm.player2Score} onChange={(e) => setEditForm((s) => ({ ...s, player2Score: Number(e.target.value) || 0 }))} />
+              </div>
+              <div className="sm:col-span-2 flex gap-2">
+                <button className="px-3 py-2 border border-primary text-primary text-xs uppercase" onClick={saveEdit}>Сохранить</button>
+                <button className="px-3 py-2 border border-border text-xs uppercase" onClick={() => setEditingId(null)}>Отмена</button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={Boolean(selectedMatchId)} onOpenChange={(open) => !open && setSelectedMatchId(null)}>
           <DialogContent>
             {selectedMatchId && (() => {
